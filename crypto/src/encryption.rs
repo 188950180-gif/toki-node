@@ -32,7 +32,7 @@ impl Default for E2EEncryption {
 pub fn encrypt(key: &[u8; 32], plaintext: &[u8]) -> Vec<u8> {
     use aes_gcm::aead::{Aead, KeyInit};
     use aes_gcm::{Aes256Gcm, Nonce};
-    
+
     let cipher = Aes256Gcm::new_from_slice(key).unwrap();
     let nonce = Nonce::from_slice(&[0u8; 12]);
     cipher.encrypt(nonce, plaintext).unwrap_or_default()
@@ -42,7 +42,7 @@ pub fn encrypt(key: &[u8; 32], plaintext: &[u8]) -> Vec<u8> {
 pub fn decrypt(key: &[u8; 32], ciphertext: &[u8]) -> Vec<u8> {
     use aes_gcm::aead::{Aead, KeyInit};
     use aes_gcm::{Aes256Gcm, Nonce};
-    
+
     let cipher = Aes256Gcm::new_from_slice(key).unwrap();
     let nonce = Nonce::from_slice(&[0u8; 12]);
     cipher.decrypt(nonce, ciphertext).unwrap_or_default()
@@ -68,10 +68,10 @@ mod tests {
     fn test_encrypt_decrypt() {
         let key = [1u8; 32];
         let plaintext = b"hello world";
-        
+
         let ciphertext = encrypt(&key, plaintext);
         let decrypted = decrypt(&key, &ciphertext);
-        
+
         assert_eq!(decrypted, plaintext.to_vec());
     }
 
@@ -79,9 +79,9 @@ mod tests {
     fn test_encrypt_produces_different_output() {
         let key = [1u8; 32];
         let plaintext = b"hello world";
-        
+
         let ciphertext = encrypt(&key, plaintext);
-        
+
         // 密文应该与明文不同
         assert_ne!(ciphertext.to_vec(), plaintext.to_vec());
     }

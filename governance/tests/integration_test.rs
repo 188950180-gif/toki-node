@@ -2,17 +2,17 @@
 //!
 //! 测试密钥轮换、加密存储、调度器的完整流程
 
+use anyhow::Result;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::time::sleep;
-use anyhow::Result;
 use tracing::info;
 
 use toki_governance::{
-    key_rotation::{KeyRotationManager, KeyRotationConfig},
     encrypted_storage::{EncryptedStorage, StorageConfig},
-    rotation_scheduler::{RotationScheduler, SchedulerConfig},
+    key_rotation::{KeyRotationConfig, KeyRotationManager},
     key_sender::KeySender,
+    rotation_scheduler::{RotationScheduler, SchedulerConfig},
 };
 
 #[tokio::test]
@@ -27,7 +27,10 @@ async fn test_full_key_rotation_workflow() -> Result<()> {
         rotation_period_days: 1, // 缩短到1天用于测试
         ..Default::default()
     };
-    let manager = Arc::new(KeyRotationManager::new(config.clone(), encryption_key.clone()));
+    let manager = Arc::new(KeyRotationManager::new(
+        config.clone(),
+        encryption_key.clone(),
+    ));
 
     // 3. 初始化接收渠道
     manager.init_channels("PHONE_PLACEHOLDER", "EMAIL_PLACEHOLDER@qq.com")?;
@@ -158,7 +161,9 @@ async fn test_key_sender_integration() -> Result<()> {
         created_at: 0,
         index: 1,
     };
-    let email_result = sender.send_to_email("test@example.com", &email_fragment).await?;
+    let email_result = sender
+        .send_to_email("test@example.com", &email_fragment)
+        .await?;
     assert!(email_result.success);
 
     // 5. 测试批量发送

@@ -1,11 +1,11 @@
 //! 自动部署模块
-//! 
+//!
 //! 实现区块链自动部署、初始化、配置管理
 
-use std::path::{Path, PathBuf};
-use std::fs;
-use serde::{Deserialize, Serialize};
 use anyhow::Result;
+use serde::{Deserialize, Serialize};
+use std::fs;
+use std::path::{Path, PathBuf};
 use tracing::{info, warn};
 
 // 简化的目录复制函数
@@ -122,37 +122,37 @@ impl AutoDeployer {
     /// 执行完整部署
     pub fn deploy(&mut self) -> Result<DeploymentResult> {
         info!("开始自动部署 [{:?}]", self.config.env);
-        
+
         let mut result = DeploymentResult::default();
-        
+
         // 1. 创建目录结构
         self.create_directories()?;
         result.directories_created = true;
         info!("✓ 目录结构创建完成");
-        
+
         // 2. 生成配置文件
         self.generate_configs()?;
         result.configs_generated = true;
         info!("✓ 配置文件生成完成");
-        
+
         // 3. 初始化数据库
         self.init_database()?;
         result.database_initialized = true;
         info!("✓ 数据库初始化完成");
-        
+
         // 4. 创建创世区块
         self.create_genesis()?;
         result.genesis_created = true;
         info!("✓ 创世区块创建完成");
-        
+
         // 5. 设置系统服务
         self.setup_service()?;
         result.service_setup = true;
         info!("✓ 系统服务设置完成");
-        
+
         self.initialized = true;
         result.success = true;
-        
+
         info!("自动部署完成！");
         Ok(result)
     }
@@ -165,14 +165,14 @@ impl AutoDeployer {
             &self.config.log_dir,
             &self.config.backup_dir,
         ];
-        
+
         for dir in dirs {
             if !dir.exists() {
                 fs::create_dir_all(dir)?;
                 info!("创建目录: {:?}", dir);
             }
         }
-        
+
         // 创建子目录
         let subdirs = vec![
             self.config.data_dir.join("blocks"),
@@ -180,13 +180,13 @@ impl AutoDeployer {
             self.config.data_dir.join("accounts"),
             self.config.data_dir.join("state"),
         ];
-        
+
         for subdir in subdirs {
             if !subdir.exists() {
                 fs::create_dir_all(&subdir)?;
             }
         }
-        
+
         Ok(())
     }
 
@@ -197,27 +197,26 @@ impl AutoDeployer {
         let config_path = self.config.config_dir.join("node.toml");
         fs::write(&config_path, &node_config)?;
         info!("生成节点配置: {:?}", config_path);
-        
+
         // 生成网络配置
         let network_config = self.generate_network_config();
         let network_path = self.config.config_dir.join("network.toml");
         fs::write(&network_path, &network_config)?;
         info!("生成网络配置: {:?}", network_path);
-        
+
         // 生成共识配置
         let consensus_config = self.generate_consensus_config();
         let consensus_path = self.config.config_dir.join("consensus.toml");
         fs::write(&consensus_path, &consensus_config)?;
         info!("生成共识配置: {:?}", consensus_path);
-        
+
         Ok(())
     }
 
     /// 生成节点配置
     fn generate_node_config(&self) -> String {
         match self.config.env {
-            DeploymentEnv::Mainnet => {
-                r#"
+            DeploymentEnv::Mainnet => r#"
 # Toki 主网节点配置
 data_dir = "/opt/toki/data"
 backup_path = "/opt/toki/backups"
@@ -245,10 +244,9 @@ check_interval = 60
 [logging]
 level = "info"
 file = "/var/log/toki/node.log"
-"#.to_string()
-            }
-            DeploymentEnv::Testnet => {
-                r#"
+"#
+            .to_string(),
+            DeploymentEnv::Testnet => r#"
 # Toki 测试网节点配置
 data_dir = "./testnet-data"
 backup_path = "./testnet-backups"
@@ -276,10 +274,9 @@ check_interval = 30
 [logging]
 level = "debug"
 file = "./testnet-logs/node.log"
-"#.to_string()
-            }
-            DeploymentEnv::Development => {
-                r#"
+"#
+            .to_string(),
+            DeploymentEnv::Development => r#"
 # Toki 开发环境配置
 data_dir = "./data"
 backup_path = "./backups"
@@ -307,8 +304,8 @@ check_interval = 10
 [logging]
 level = "debug"
 file = "./logs/node.log"
-"#.to_string()
-            }
+"#
+            .to_string(),
         }
     }
 
@@ -329,7 +326,8 @@ min_version = "0.1.0"
 [security]
 enable_encryption = true
 max_message_size = 10485760
-"#.to_string()
+"#
+        .to_string()
     }
 
     /// 生成共识配置
@@ -350,7 +348,8 @@ max_adjustment_rate = 4.0
 [reward]
 base_reward = 100000000000  # 100 toki
 halving_interval = 210000
-"#.to_string()
+"#
+        .to_string()
     }
 
     /// 初始化数据库
@@ -424,21 +423,21 @@ WantedBy=multi-user.target
         let timestamp = chrono::Utc::now().format("%Y%m%d_%H%M%S");
         let backup_name = format!("backup_{}", timestamp);
         let backup_path = self.config.backup_dir.join(&backup_name);
-        
+
         fs::create_dir_all(&backup_path)?;
-        
+
         // 备份数据目录
         let data_backup = backup_path.join("data");
         if self.config.data_dir.exists() {
             copy_dir_all(&self.config.data_dir, &data_backup).ok();
         }
-        
+
         // 备份配置目录
         let config_backup = backup_path.join("config");
         if self.config.config_dir.exists() {
             copy_dir_all(&self.config.config_dir, &config_backup).ok();
         }
-        
+
         info!("备份完成: {:?}", backup_path);
         Ok(backup_path)
     }
@@ -449,16 +448,16 @@ WantedBy=multi-user.target
             .filter_map(|e| e.ok())
             .filter(|e| e.file_name().to_string_lossy().starts_with("backup_"))
             .collect();
-        
+
         backups.sort_by_key(|e| e.file_name());
-        
+
         // 保留最新的 max_backups 个
         let to_remove = backups.len().saturating_sub(self.config.max_backups);
         for entry in backups.into_iter().take(to_remove) {
             fs::remove_dir_all(entry.path())?;
             info!("删除旧备份: {:?}", entry.path());
         }
-        
+
         Ok(())
     }
 }

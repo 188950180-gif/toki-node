@@ -103,7 +103,8 @@ impl Block {
 
     /// 获取区块哈希
     pub fn hash(&self) -> Hash {
-        self.block_hash.unwrap_or_else(|| self.header.compute_hash())
+        self.block_hash
+            .unwrap_or_else(|| self.header.compute_hash())
     }
 
     /// 获取区块高度
@@ -137,10 +138,17 @@ impl Block {
     pub fn size(&self) -> usize {
         // 简化估算
         let header_size = 8 + 32 + 32 + 8 + 8 + 8 + 32; // 约 128 字节
-        let tx_size: usize = self.transactions.iter().map(|tx| {
-            // 简化估算每笔交易大小
-            32 + tx.inputs.len() * 36 + tx.outputs.len() * 72 + tx.ring_signature.ring.len() * 32 + 64
-        }).sum();
+        let tx_size: usize = self
+            .transactions
+            .iter()
+            .map(|tx| {
+                // 简化估算每笔交易大小
+                32 + tx.inputs.len() * 36
+                    + tx.outputs.len() * 72
+                    + tx.ring_signature.ring.len() * 32
+                    + 64
+            })
+            .sum();
         header_size + tx_size
     }
 }
@@ -154,7 +162,7 @@ fn compute_merkle_root(transactions: &[Transaction]) -> Hash {
     // 预分配空间，减少内存分配
     let tx_count = transactions.len();
     let mut hashes: Vec<Hash> = Vec::with_capacity(tx_count.next_power_of_two());
-    
+
     // 批量计算交易哈希
     hashes.extend(transactions.iter().map(|tx| tx.hash()));
 
@@ -163,7 +171,7 @@ fn compute_merkle_root(transactions: &[Transaction]) -> Hash {
         let len = hashes.len();
         let next_len = (len + 1) / 2;
         let mut next_level = Vec::with_capacity(next_len);
-        
+
         let mut i = 0;
         while i < len {
             if i + 1 < len {
@@ -282,7 +290,12 @@ mod tests {
 
         // 两笔交易
         let ring_sig2 = RingSignature::new(vec![vec![1u8; 32]], vec![2u8; 64], Hash::ZERO);
-        let tx2 = Transaction::new(vec![], vec![Output::new(addr, 200 * TOKI_BASE_UNIT)], ring_sig2, 1000);
+        let tx2 = Transaction::new(
+            vec![],
+            vec![Output::new(addr, 200 * TOKI_BASE_UNIT)],
+            ring_sig2,
+            1000,
+        );
         let root3 = compute_merkle_root(&[tx, tx2]);
         assert_ne!(root3, root2);
     }

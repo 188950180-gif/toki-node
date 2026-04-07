@@ -1,13 +1,13 @@
 //! 自动节点发现与连接模块
-//! 
+//!
 //! 实现自动发现外部节点、建立连接、维护网络拓扑
 
+use anyhow::Result;
+use async_trait::async_trait;
+use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::time::Instant;
-use serde::{Deserialize, Serialize};
-use async_trait::async_trait;
-use anyhow::Result;
-use tracing::{info, warn, debug};
+use tracing::{debug, info, warn};
 
 /// 节点 ID
 pub type NodeId = String;
@@ -74,9 +74,11 @@ pub struct DiscoveryConfig {
 impl Default for DiscoveryConfig {
     fn default() -> Self {
         DiscoveryConfig {
-            seed_nodes: vec![
-                NodeAddress { ip: "182.254.176.30".to_string(), port: 30333, protocol: "toki".to_string() },
-            ],
+            seed_nodes: vec![NodeAddress {
+                ip: "182.254.176.30".to_string(),
+                port: 30333,
+                protocol: "toki".to_string(),
+            }],
             max_connections: 100,
             min_connections: 10,
             discovery_interval: 60,
@@ -93,13 +95,13 @@ impl Default for DiscoveryConfig {
 pub trait NodeConnector: Send + Sync {
     /// 连接节点
     async fn connect(&self, address: &NodeAddress) -> Result<NodeInfo>;
-    
+
     /// 断开连接
     async fn disconnect(&self, node_id: &NodeId) -> Result<()>;
-    
+
     /// 发送心跳
     async fn heartbeat(&self, node_id: &NodeId) -> Result<u64>;
-    
+
     /// 获取节点列表
     async fn get_peers(&self, node_id: &NodeId) -> Result<Vec<NodeInfo>>;
 }
@@ -144,12 +146,12 @@ impl AutoNodeDiscovery {
     /// 初始化种子节点连接
     pub async fn initialize(&mut self) -> Result<Vec<NodeInfo>> {
         info!("初始化种子节点连接...");
-        
+
         let mut connected = Vec::new();
-        
+
         // 收集种子节点地址
         let seed_addresses: Vec<_> = self.config.seed_nodes.clone();
-        
+
         for seed in seed_addresses {
             match self.connect_to_node(&seed).await {
                 Ok(node) => {
@@ -161,11 +163,11 @@ impl AutoNodeDiscovery {
                 }
             }
         }
-        
+
         if connected.is_empty() {
             warn!("未能连接任何种子节点，作为独立节点运行");
         }
-        
+
         Ok(connected)
     }
 
@@ -186,11 +188,11 @@ impl AutoNodeDiscovery {
         if !self.config.auto_discovery {
             return Ok(Vec::new());
         }
-        
+
         info!("开始自动发现节点...");
-        
+
         let mut discovered = Vec::new();
-        
+
         // 从已连接节点获取对等节点列表
         for node_id in self.active_connections.clone() {
             if let Some(ref connector) = self.connector {
@@ -210,10 +212,10 @@ impl AutoNodeDiscovery {
                 }
             }
         }
-        
+
         self.last_discovery = Some(Instant::now());
         info!("发现 {} 个新节点", discovered.len());
-        
+
         Ok(discovered)
     }
 
@@ -224,15 +226,15 @@ impl AutoNodeDiscovery {
             info!("连接数不足，尝试建立新连接...");
             self.connect_to_more_nodes().await?;
         }
-        
+
         // 检查是否需要减少连接
         if self.active_connections.len() > self.config.max_connections {
             self.disconnect_worst_nodes().await?;
         }
-        
+
         // 移除超时节点
         self.remove_timeout_nodes();
-        
+
         Ok(())
     }
 
@@ -240,26 +242,28 @@ impl AutoNodeDiscovery {
     async fn connect_to_more_nodes(&mut self) -> Result<()> {
         let needed = self.config.min_connections - self.active_connections.len();
         let mut connected = 0;
-        
+
         // 收集候选节点地址
-        let candidates: Vec<_> = self.known_nodes.values()
+        let candidates: Vec<_> = self
+            .known_nodes
+            .values()
             .filter(|n| !self.active_connections.contains(&n.id))
             .map(|n| (n.id.clone(), n.address.clone(), n.reliability))
             .collect();
-        
+
         let mut sorted_candidates = candidates;
         sorted_candidates.sort_by(|a, b| b.2.partial_cmp(&a.2).unwrap());
-        
+
         for (node_id, node_addr, _) in sorted_candidates {
             if connected >= needed {
                 break;
             }
-            
+
             let attempts = self.attempt_counts.get(&node_id).copied().unwrap_or(0);
             if attempts >= self.config.max_attempts {
                 continue;
             }
-            
+
             match self.connect_to_node(&node_addr).await {
                 Ok(_) => {
                     connected += 1;
@@ -271,20 +275,22 @@ impl AutoNodeDiscovery {
                 }
             }
         }
-        
+
         Ok(())
     }
 
     /// 断开最差节点
     async fn disconnect_worst_nodes(&mut self) -> Result<()> {
         let excess = self.active_connections.len() - self.config.max_connections;
-        
+
         // 按可靠性排序（升序）
-        let mut nodes: Vec<_> = self.active_connections.iter()
+        let mut nodes: Vec<_> = self
+            .active_connections
+            .iter()
             .filter_map(|id| self.known_nodes.get(id))
             .collect();
         nodes.sort_by(|a, b| a.reliability.partial_cmp(&b.reliability).unwrap());
-        
+
         for node in nodes.iter().take(excess) {
             if let Some(ref connector) = self.connector {
                 connector.disconnect(&node.id).await?;
@@ -292,7 +298,7 @@ impl AutoNodeDiscovery {
                 info!("断开低可靠性节点: {}", node.id);
             }
         }
-        
+
         Ok(())
     }
 
@@ -300,14 +306,12 @@ impl AutoNodeDiscovery {
     fn remove_timeout_nodes(&mut self) {
         let now = Instant::now().elapsed().as_secs();
         let timeout = self.config.node_timeout;
-        
-        self.known_nodes.retain(|_, node| {
-            now - node.last_seen < timeout
-        });
-        
-        self.active_connections.retain(|id| {
-            self.known_nodes.contains_key(id)
-        });
+
+        self.known_nodes
+            .retain(|_, node| now - node.last_seen < timeout);
+
+        self.active_connections
+            .retain(|id| self.known_nodes.contains_key(id));
     }
 
     /// 发送心跳
@@ -327,7 +331,7 @@ impl AutoNodeDiscovery {
                 }
             }
         }
-        
+
         self.last_heartbeat = Some(Instant::now());
         Ok(())
     }
@@ -344,7 +348,9 @@ impl AutoNodeDiscovery {
 
     /// 获取最佳节点
     pub fn get_best_nodes(&self, count: usize) -> Vec<&NodeInfo> {
-        let mut nodes: Vec<_> = self.active_connections.iter()
+        let mut nodes: Vec<_> = self
+            .active_connections
+            .iter()
             .filter_map(|id| self.known_nodes.get(id))
             .collect();
         nodes.sort_by(|a, b| b.reliability.partial_cmp(&a.reliability).unwrap());
@@ -363,26 +369,30 @@ impl AutoNodeDiscovery {
     }
 
     fn calculate_avg_latency(&self) -> f64 {
-        let active: Vec<_> = self.active_connections.iter()
+        let active: Vec<_> = self
+            .active_connections
+            .iter()
             .filter_map(|id| self.known_nodes.get(id))
             .collect();
-        
+
         if active.is_empty() {
             return 0.0;
         }
-        
+
         active.iter().map(|n| n.latency as f64).sum::<f64>() / active.len() as f64
     }
 
     fn calculate_avg_reliability(&self) -> f64 {
-        let active: Vec<_> = self.active_connections.iter()
+        let active: Vec<_> = self
+            .active_connections
+            .iter()
             .filter_map(|id| self.known_nodes.get(id))
             .collect();
-        
+
         if active.is_empty() {
             return 0.0;
         }
-        
+
         active.iter().map(|n| n.reliability).sum::<f64>() / active.len() as f64
     }
 }

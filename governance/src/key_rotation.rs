@@ -4,12 +4,12 @@
 //! 用于保护开发者权益，防止监控和威胁
 //! 实现区块链节点的自主运行
 
-use std::sync::Arc;
-use std::time::{Duration, SystemTime};
+use anyhow::Result;
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
-use anyhow::Result;
-use tracing::{info, warn, error, debug};
+use std::sync::Arc;
+use std::time::{Duration, SystemTime};
+use tracing::{debug, error, info, warn};
 
 use toki_core::{Address, TOKI_BASE_UNIT};
 use toki_crypto as crypto;
@@ -231,7 +231,9 @@ impl KeyRotationManager {
     /// 发送密钥片段
     async fn send_fragments(&self, fragments: &[KeyFragment]) -> Result<()> {
         let key_info = self.encrypted_key_info.read();
-        let key_info = key_info.as_ref().ok_or_else(|| anyhow::anyhow!("接收渠道未初始化"))?;
+        let key_info = key_info
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("接收渠道未初始化"))?;
 
         for fragment in fragments {
             match fragment.index {
@@ -350,7 +352,8 @@ impl KeyRotationManager {
     pub fn verify_integrity(&self) -> bool {
         let key_info = self.encrypted_key_info.read();
         if let Some(ref info) = *key_info {
-            let current_hash = self.create_verification_hash(&info.encrypted_phone, &info.encrypted_email);
+            let current_hash =
+                self.create_verification_hash(&info.encrypted_phone, &info.encrypted_email);
             current_hash == info.verification_hash
         } else {
             false
@@ -402,7 +405,7 @@ mod tests {
     fn test_key_splitting() {
         let manager = KeyRotationManager::new(KeyRotationConfig::default(), vec![0u8; 32]);
         let key = vec![1u8; 64];
-        
+
         // 注意：这个测试会失败，因为 split_key 需要实际的加密实现
         // 这里只是演示结构
     }

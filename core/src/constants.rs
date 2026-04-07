@@ -157,6 +157,9 @@ mod tests {
     #[test]
     fn test_pool_amounts() {
         // 验证池金额总和等于总量
-        assert_eq!(DISTRIBUTION_POOL_INITIAL + RESERVE_POOL_INITIAL, TOTAL_SUPPLY);
+        assert_eq!(
+            DISTRIBUTION_POOL_INITIAL + RESERVE_POOL_INITIAL,
+            TOTAL_SUPPLY
+        );
     }
 }

@@ -30,7 +30,11 @@ impl DhtManager {
 
     /// 存储记录
     pub fn put(&mut self, key: Vec<u8>, value: Vec<u8>) {
-        debug!("DHT 存储: key={} bytes, value={} bytes", key.len(), value.len());
+        debug!(
+            "DHT 存储: key={} bytes, value={} bytes",
+            key.len(),
+            value.len()
+        );
         self.cache.insert(key, value);
     }
 

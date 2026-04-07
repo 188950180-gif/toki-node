@@ -1,5 +1,5 @@
 //! 交易池（内存池）
-//! 
+//!
 //! 管理待确认的交易
 
 use std::collections::{HashMap, HashSet, VecDeque};
@@ -114,11 +114,14 @@ impl TransactionPool {
         // 添加交易
         {
             let mut txs = self.transactions.write();
-            txs.insert(tx_hash, PoolEntry {
-                transaction: tx.clone(),
-                added_at: now,
-                size,
-            });
+            txs.insert(
+                tx_hash,
+                PoolEntry {
+                    transaction: tx.clone(),
+                    added_at: now,
+                    size,
+                },
+            );
         }
 
         // 添加到待处理队列
@@ -175,7 +178,8 @@ impl TransactionPool {
         let pending = self.pending.read();
         let txs = self.transactions.read();
 
-        pending.iter()
+        pending
+            .iter()
             .take(max_count)
             .filter_map(|h| txs.get(h).map(|e| e.transaction.clone()))
             .collect()
@@ -246,7 +250,7 @@ fn estimate_tx_size(tx: &Transaction) -> usize {
     let output_size = tx.outputs.len() * 72;
     let ring_size = tx.ring_signature.ring.len() * 32;
     let sig_size = tx.ring_signature.signature.len();
-    
+
     base_size + input_size + output_size + ring_size + sig_size
 }
 
@@ -272,7 +276,7 @@ mod tests {
     fn test_add_transaction() {
         let pool = TransactionPool::default();
         let tx = create_test_tx();
-        
+
         let result = pool.add_transaction(tx);
         assert!(result.is_ok());
         assert_eq!(pool.tx_count(), 1);
@@ -282,7 +286,7 @@ mod tests {
     fn test_duplicate_transaction() {
         let pool = TransactionPool::default();
         let tx = create_test_tx();
-        
+
         pool.add_transaction(tx.clone()).unwrap();
         let result = pool.add_transaction(tx);
         assert!(matches!(result, Err(TxPoolError::AlreadyExists)));
@@ -292,9 +296,9 @@ mod tests {
     fn test_get_pending() {
         let pool = TransactionPool::default();
         let tx = create_test_tx();
-        
+
         pool.add_transaction(tx).unwrap();
-        
+
         let pending = pool.get_pending_transactions(10);
         assert_eq!(pending.len(), 1);
     }

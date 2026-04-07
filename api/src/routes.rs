@@ -23,18 +23,36 @@ pub fn create_routes(state: ApiState) -> Router {
         .route("/api/v1/transaction/send", post(handlers::send_transaction))
         // 账户相关
         .route("/api/v1/account/:address", get(handlers::get_account))
-        .route("/api/v1/account/balance/:address", get(handlers::get_balance))
+        .route(
+            "/api/v1/account/balance/:address",
+            get(handlers::get_balance),
+        )
         // 共识相关
-        .route("/api/v1/consensus/status", get(handlers::get_consensus_status))
-        .route("/api/v1/consensus/difficulty", get(handlers::get_difficulty))
+        .route(
+            "/api/v1/consensus/status",
+            get(handlers::get_consensus_status),
+        )
+        .route(
+            "/api/v1/consensus/difficulty",
+            get(handlers::get_difficulty),
+        )
         // 治理相关
         .route("/api/v1/governance/proposals", get(handlers::get_proposals))
         .route("/api/v1/governance/vote", post(handlers::submit_vote))
         // 开发者相关
-        .route("/api/v1/developer/status", get(handlers::get_developer_status))
+        .route(
+            "/api/v1/developer/status",
+            get(handlers::get_developer_status),
+        )
         // 交易池相关
-        .route("/api/v1/transaction-pool", get(handlers::get_transaction_pool))
+        .route(
+            "/api/v1/transaction-pool",
+            get(handlers::get_transaction_pool),
+        )
         // 收费公告相关
-        .route("/api/v1/fee/announcement", get(handlers::get_fee_announcement))
+        .route(
+            "/api/v1/fee/announcement",
+            get(handlers::get_fee_announcement),
+        )
         .with_state(state)
 }

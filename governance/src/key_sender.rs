@@ -2,9 +2,9 @@
 //!
 //! 实现密钥片段的安全发送机制
 
-use std::time::Duration;
 use anyhow::Result;
-use tracing::{info, warn, error, debug};
+use std::time::Duration;
+use tracing::{debug, error, info, warn};
 
 use super::key_rotation::KeyFragment;
 
@@ -67,7 +67,7 @@ impl KeySender {
                 Ok(_) => {
                     let duration = start.elapsed().as_millis() as u64;
                     info!("✅ 发送到手机号成功");
-                    
+
                     return Ok(SendResult {
                         success: true,
                         retries,
@@ -78,9 +78,12 @@ impl KeySender {
                 Err(e) => {
                     retries += 1;
                     if retries >= self.config.max_retries {
-                        error!("❌ 发送到手机号失败（重试{}次）: {}", self.config.max_retries, e);
+                        error!(
+                            "❌ 发送到手机号失败（重试{}次）: {}",
+                            self.config.max_retries, e
+                        );
                         let duration = start.elapsed().as_millis() as u64;
-                        
+
                         return Ok(SendResult {
                             success: false,
                             retries,
@@ -88,7 +91,10 @@ impl KeySender {
                             error_message: Some(e.to_string()),
                         });
                     }
-                    warn!("发送失败，重试 {}/{}: {}", retries, self.config.max_retries, e);
+                    warn!(
+                        "发送失败，重试 {}/{}: {}",
+                        retries, self.config.max_retries, e
+                    );
                     tokio::time::sleep(Duration::from_secs(5)).await;
                 }
             }
@@ -108,7 +114,7 @@ impl KeySender {
                 Ok(_) => {
                     let duration = start.elapsed().as_millis() as u64;
                     info!("✅ 发送到邮箱成功");
-                    
+
                     return Ok(SendResult {
                         success: true,
                         retries,
@@ -119,9 +125,12 @@ impl KeySender {
                 Err(e) => {
                     retries += 1;
                     if retries >= self.config.max_retries {
-                        error!("❌ 发送到邮箱失败（重试{}次）: {}", self.config.max_retries, e);
+                        error!(
+                            "❌ 发送到邮箱失败（重试{}次）: {}",
+                            self.config.max_retries, e
+                        );
                         let duration = start.elapsed().as_millis() as u64;
-                        
+
                         return Ok(SendResult {
                             success: false,
                             retries,
@@ -129,7 +138,10 @@ impl KeySender {
                             error_message: Some(e.to_string()),
                         });
                     }
-                    warn!("发送失败，重试 {}/{}: {}", retries, self.config.max_retries, e);
+                    warn!(
+                        "发送失败，重试 {}/{}: {}",
+                        retries, self.config.max_retries, e
+                    );
                     tokio::time::sleep(Duration::from_secs(5)).await;
                 }
             }
@@ -140,13 +152,13 @@ impl KeySender {
     async fn try_send_to_phone(&self, phone: &str, fragment: &KeyFragment) -> Result<()> {
         // 模拟发送逻辑
         // 实际实现应该使用短信网关 API
-        
+
         debug!("模拟发送到手机号: {}", phone);
         debug!("片段数据长度: {} 字节", fragment.encrypted_data.len());
-        
+
         // 模拟网络延迟
         tokio::time::sleep(Duration::from_millis(100)).await;
-        
+
         // 模拟成功
         Ok(())
     }
@@ -155,13 +167,13 @@ impl KeySender {
     async fn try_send_to_email(&self, email: &str, fragment: &KeyFragment) -> Result<()> {
         // 模拟发送逻辑
         // 实际实现应该使用 SMTP 或邮件 API
-        
+
         debug!("模拟发送到邮箱: {}", email);
         debug!("片段数据长度: {} 字节", fragment.encrypted_data.len());
-        
+
         // 模拟网络延迟
         tokio::time::sleep(Duration::from_millis(100)).await;
-        
+
         // 模拟成功
         Ok(())
     }
@@ -169,29 +181,33 @@ impl KeySender {
     /// 批量发送片段
     pub async fn send_batch(&self, targets: &[(String, KeyFragment)]) -> Vec<SendResult> {
         let mut results = Vec::new();
-        
+
         for (target, fragment) in targets {
             let result = if target.contains('@') {
                 // 邮箱
-                self.send_to_email(&target, fragment).await.unwrap_or_else(|e| SendResult {
-                    success: false,
-                    retries: 0,
-                    duration_ms: 0,
-                    error_message: Some(e.to_string()),
-                })
+                self.send_to_email(&target, fragment)
+                    .await
+                    .unwrap_or_else(|e| SendResult {
+                        success: false,
+                        retries: 0,
+                        duration_ms: 0,
+                        error_message: Some(e.to_string()),
+                    })
             } else {
                 // 手机号
-                self.send_to_phone(&target, fragment).await.unwrap_or_else(|e| SendResult {
-                    success: false,
-                    retries: 0,
-                    duration_ms: 0,
-                    error_message: Some(e.to_string()),
-                })
+                self.send_to_phone(&target, fragment)
+                    .await
+                    .unwrap_or_else(|e| SendResult {
+                        success: false,
+                        retries: 0,
+                        duration_ms: 0,
+                        error_message: Some(e.to_string()),
+                    })
             };
-            
+
             results.push(result);
         }
-        
+
         results
     }
 }
@@ -221,8 +237,11 @@ mod tests {
             created_at: 0,
             index: 0,
         };
-        
-        let result = sender.send_to_phone("13800138000", &fragment).await.unwrap();
+
+        let result = sender
+            .send_to_phone("13800138000", &fragment)
+            .await
+            .unwrap();
         assert!(result.success);
     }
 
@@ -235,8 +254,11 @@ mod tests {
             created_at: 0,
             index: 1,
         };
-        
-        let result = sender.send_to_email("test@example.com", &fragment).await.unwrap();
+
+        let result = sender
+            .send_to_email("test@example.com", &fragment)
+            .await
+            .unwrap();
         assert!(result.success);
     }
 }

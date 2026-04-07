@@ -1,14 +1,14 @@
 //! 自动升级模块
-//! 
+//!
 //! 实现区块链自动升级、版本管理、热更新
 
-use std::path::{Path, PathBuf};
-use std::fs;
-use std::time::Instant;
-use serde::{Deserialize, Serialize};
 use anyhow::Result;
 use async_trait::async_trait;
-use tracing::{info, warn, error};
+use serde::{Deserialize, Serialize};
+use std::fs;
+use std::path::{Path, PathBuf};
+use std::time::Instant;
+use tracing::{error, info, warn};
 
 /// 版本号
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
@@ -24,7 +24,11 @@ pub struct Version {
 impl Version {
     /// 创建新版本
     pub fn new(major: u32, minor: u32, patch: u32) -> Self {
-        Version { major, minor, patch }
+        Version {
+            major,
+            minor,
+            patch,
+        }
     }
 
     /// 从字符串解析
@@ -129,10 +133,10 @@ impl Default for UpgradeConfig {
 pub trait VersionChecker: Send + Sync {
     /// 检查最新版本
     async fn check_latest(&self) -> Result<Option<UpgradeInfo>>;
-    
+
     /// 下载升级包
     async fn download(&self, info: &UpgradeInfo) -> Result<PathBuf>;
-    
+
     /// 验证升级包
     async fn verify(&self, path: &Path, info: &UpgradeInfo) -> Result<bool>;
 }
@@ -220,19 +224,19 @@ impl AutoUpgrader {
         if self.state != UpgradeState::Idle {
             return Ok(None);
         }
-        
+
         self.state = UpgradeState::Checking;
         info!("检查更新...");
-        
+
         let result = if let Some(ref checker) = self.checker {
             checker.check_latest().await
         } else {
             Ok(None)
         };
-        
+
         self.state = UpgradeState::Idle;
         self.last_check = Some(Instant::now());
-        
+
         result
     }
 
@@ -241,26 +245,33 @@ impl AutoUpgrader {
         if self.state != UpgradeState::Idle {
             return Ok(false);
         }
-        
+
         // 检查是否需要升级
         if !self.config.current_version.needs_upgrade(&info.version) {
             info!("已是最新版本，无需升级");
             return Ok(true);
         }
-        
+
         // 检查兼容性
-        if !self.config.current_version.is_compatible(&info.min_compatible) {
+        if !self
+            .config
+            .current_version
+            .is_compatible(&info.min_compatible)
+        {
             error!("版本不兼容，无法升级");
             return Ok(false);
         }
-        
-        info!("开始升级: {} -> {}", self.config.current_version, info.version);
-        
+
+        info!(
+            "开始升级: {} -> {}",
+            self.config.current_version, info.version
+        );
+
         // 备份当前版本
         if self.config.backup_before_upgrade {
             self.backup_current_version()?;
         }
-        
+
         // 下载升级包
         self.state = UpgradeState::Downloading;
         let package_path = if let Some(ref checker) = self.checker {
@@ -268,7 +279,7 @@ impl AutoUpgrader {
         } else {
             return Err(anyhow::anyhow!("未设置版本检查器"));
         };
-        
+
         // 验证升级包
         self.state = UpgradeState::Verifying;
         let valid = if let Some(ref checker) = self.checker {
@@ -276,27 +287,31 @@ impl AutoUpgrader {
         } else {
             false
         };
-        
+
         if !valid {
             error!("升级包验证失败");
             self.state = UpgradeState::Idle;
             return Ok(false);
         }
-        
+
         // 安装升级
         self.state = UpgradeState::Installing;
         let success = self.install_upgrade(&package_path, info).await?;
-        
+
         // 记录升级历史
         let record = UpgradeRecord {
             from_version: self.config.current_version.clone(),
             to_version: info.version.clone(),
             timestamp: chrono::Utc::now().timestamp() as u64,
             success,
-            note: if success { "升级成功".to_string() } else { "升级失败".to_string() },
+            note: if success {
+                "升级成功".to_string()
+            } else {
+                "升级失败".to_string()
+            },
         };
         self.upgrade_history.push(record);
-        
+
         if success {
             self.config.current_version = info.version.clone();
             self.state = UpgradeState::NeedRestart;
@@ -306,7 +321,7 @@ impl AutoUpgrader {
             // 回滚
             self.rollback().await?;
         }
-        
+
         Ok(success)
     }
 
@@ -314,16 +329,16 @@ impl AutoUpgrader {
     fn backup_current_version(&self) -> Result<()> {
         let backup_dir = self.config.download_dir.join("backup");
         fs::create_dir_all(&backup_dir)?;
-        
+
         let version_str = self.config.current_version.to_string();
         let backup_path = backup_dir.join(format!("v{}", version_str));
-        
+
         // 备份可执行文件
         let exe_path = std::env::current_exe()?;
         if exe_path.exists() {
             fs::copy(&exe_path, backup_path.join("toki-node"))?;
         }
-        
+
         info!("已备份当前版本: v{}", version_str);
         Ok(())
     }
@@ -331,17 +346,17 @@ impl AutoUpgrader {
     /// 安装升级
     async fn install_upgrade(&mut self, package_path: &Path, info: &UpgradeInfo) -> Result<bool> {
         info!("安装升级包: {:?}", package_path);
-        
+
         // 解压升级包
         let extract_dir = self.config.download_dir.join("extracted");
         if extract_dir.exists() {
             fs::remove_dir_all(&extract_dir)?;
         }
         fs::create_dir_all(&extract_dir)?;
-        
+
         // TODO: 实现解压逻辑
         // 这里简化处理，假设升级包已解压
-        
+
         // 替换可执行文件
         let new_exe = extract_dir.join("toki-node");
         if new_exe.exists() {
@@ -349,10 +364,10 @@ impl AutoUpgrader {
             fs::copy(&new_exe, &exe_path)?;
             info!("已替换可执行文件");
         }
-        
+
         // 更新配置文件
         self.update_configs(info)?;
-        
+
         Ok(true)
     }
 
@@ -361,7 +376,7 @@ impl AutoUpgrader {
         // 更新版本配置
         let version_file = self.config.download_dir.join("version.txt");
         fs::write(&version_file, info.version.to_string())?;
-        
+
         Ok(())
     }
 
@@ -370,33 +385,33 @@ impl AutoUpgrader {
         if self.state != UpgradeState::Idle && self.state != UpgradeState::NeedRestart {
             return Ok(false);
         }
-        
+
         self.state = UpgradeState::RollingBack;
         info!("开始回滚...");
-        
+
         let backup_dir = self.config.download_dir.join("backup");
         if !backup_dir.exists() {
             warn!("没有可用的备份");
             self.state = UpgradeState::Idle;
             return Ok(false);
         }
-        
+
         // 找到最新的备份
         let mut backups: Vec<_> = fs::read_dir(&backup_dir)?
             .filter_map(|e| e.ok())
             .filter(|e| e.file_name().to_string_lossy().starts_with("v"))
             .collect();
-        
+
         backups.sort_by_key(|e| e.file_name());
-        
+
         if let Some(latest) = backups.last() {
             let backup_path = latest.path();
             let backup_exe = backup_path.join("toki-node");
-            
+
             if backup_exe.exists() {
                 let exe_path = std::env::current_exe()?;
                 fs::copy(&backup_exe, &exe_path)?;
-                
+
                 // 从备份目录名解析版本
                 let version_str = latest.file_name().to_string_lossy().to_string();
                 if version_str.len() > 1 {
@@ -404,13 +419,13 @@ impl AutoUpgrader {
                         self.config.current_version = version;
                     }
                 }
-                
+
                 info!("回滚完成");
                 self.state = UpgradeState::NeedRestart;
                 return Ok(true);
             }
         }
-        
+
         self.state = UpgradeState::Idle;
         Ok(false)
     }
@@ -420,15 +435,15 @@ impl AutoUpgrader {
         if !self.config.hot_reload {
             return Ok(false);
         }
-        
+
         info!("热更新模块: {}", module);
-        
+
         // TODO: 实现热更新逻辑
         // 1. 下载新模块
         // 2. 验证模块
         // 3. 替换模块
         // 4. 重新加载
-        
+
         Ok(true)
     }
 
@@ -467,7 +482,7 @@ mod tests {
         let v1 = Version::new(1, 0, 0);
         let v2 = Version::new(1, 1, 0);
         let v3 = Version::new(2, 0, 0);
-        
+
         assert!(v1 < v2);
         assert!(v2 < v3);
         assert!(v1.is_compatible(&v2));
@@ -478,7 +493,7 @@ mod tests {
     fn test_version_needs_upgrade() {
         let current = Version::new(1, 0, 0);
         let latest = Version::new(1, 1, 0);
-        
+
         assert!(current.needs_upgrade(&latest));
         assert!(!latest.needs_upgrade(&current));
     }

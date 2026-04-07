@@ -3,15 +3,15 @@
 //! 实现自动化的密钥轮换调度
 //! 定期检查并执行密钥轮换
 
-use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::time::{Duration, SystemTime};
-use parking_lot::RwLock;
-use tokio::sync::mpsc;
 use anyhow::Result;
-use tracing::{info, warn, debug, error};
+use parking_lot::RwLock;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
+use std::time::{Duration, SystemTime};
+use tokio::sync::mpsc;
+use tracing::{debug, error, info, warn};
 
-use super::key_rotation::{KeyRotationManager, KeyRotationConfig};
+use super::key_rotation::{KeyRotationConfig, KeyRotationManager};
 
 /// 调度器配置
 #[derive(Clone, Debug)]
@@ -62,10 +62,7 @@ pub struct RotationScheduler {
 
 impl RotationScheduler {
     /// 创建新的调度器
-    pub fn new(
-        config: SchedulerConfig,
-        rotation_manager: Arc<KeyRotationManager>,
-    ) -> Self {
+    pub fn new(config: SchedulerConfig, rotation_manager: Arc<KeyRotationManager>) -> Self {
         let (event_sender, event_receiver) = mpsc::unbounded_channel();
 
         info!("创建密钥轮换调度器");
@@ -95,9 +92,13 @@ impl RotationScheduler {
         let running = self.running.clone();
 
         tokio::spawn(async move {
-            let mut interval = tokio::time::interval(Duration::from_secs(config.check_interval_secs));
-            
-            info!("调度器已启动，将在 {} 秒后首次检查", config.check_interval_secs);
+            let mut interval =
+                tokio::time::interval(Duration::from_secs(config.check_interval_secs));
+
+            info!(
+                "调度器已启动，将在 {} 秒后首次检查",
+                config.check_interval_secs
+            );
 
             loop {
                 interval.tick().await;
@@ -155,7 +156,10 @@ impl RotationScheduler {
                         });
                         break;
                     } else {
-                        warn!("密钥轮换失败，重试 {}/{}: {}", retries, config.max_retries, e);
+                        warn!(
+                            "密钥轮换失败，重试 {}/{}: {}",
+                            retries, config.max_retries, e
+                        );
                         tokio::time::sleep(Duration::from_secs(60)).await;
                     }
                 }
@@ -219,7 +223,7 @@ mod tests {
         let config = KeyRotationConfig::default();
         let manager = Arc::new(KeyRotationManager::new(config, vec![0u8; 32]));
         let scheduler = RotationScheduler::new(SchedulerConfig::default(), manager);
-        
+
         assert!(!scheduler.is_running());
     }
 
@@ -228,10 +232,10 @@ mod tests {
         let config = KeyRotationConfig::default();
         let manager = Arc::new(KeyRotationManager::new(config, vec![0u8; 32]));
         let scheduler = RotationScheduler::new(SchedulerConfig::default(), manager);
-        
+
         scheduler.start().await.unwrap();
         assert!(scheduler.is_running());
-        
+
         scheduler.stop();
         tokio::time::sleep(Duration::from_millis(100)).await;
         assert!(!scheduler.is_running());

@@ -1,13 +1,13 @@
 //! 自愈系统
-//! 
+//!
 //! 自动检测和修复系统故障
 
-use std::collections::HashMap;
-use std::time::{Duration, Instant};
-use serde::{Deserialize, Serialize};
 use anyhow::Result;
 use async_trait::async_trait;
-use tracing::{info, warn, error};
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use std::time::{Duration, Instant};
+use tracing::{error, info, warn};
 
 /// 组件类型
 #[derive(Clone, Debug, Hash, Eq, PartialEq, Serialize, Deserialize)]
@@ -130,7 +130,7 @@ pub struct FailureRecord {
 pub trait HealthChecker: Send + Sync {
     /// 检查健康状态
     async fn check(&self) -> HealthStatus;
-    
+
     /// 检查特定组件
     async fn check_component(&self, component: &Component) -> ComponentHealth;
 }
@@ -191,18 +191,24 @@ impl SelfHealingSystem {
     /// 创建新的自愈系统
     pub fn new() -> Self {
         let mut recovery_strategies = HashMap::new();
-        
+
         // 默认恢复策略
         recovery_strategies.insert(ErrorType::ConnectionFailed, RecoveryStrategy::Restart);
-        recovery_strategies.insert(ErrorType::Timeout, RecoveryStrategy::Wait(Duration::from_secs(10)));
+        recovery_strategies.insert(
+            ErrorType::Timeout,
+            RecoveryStrategy::Wait(Duration::from_secs(10)),
+        );
         recovery_strategies.insert(ErrorType::OutOfMemory, RecoveryStrategy::ClearCache);
         recovery_strategies.insert(ErrorType::DiskFull, RecoveryStrategy::Alert);
         recovery_strategies.insert(ErrorType::DataCorruption, RecoveryStrategy::Rebuild);
         recovery_strategies.insert(ErrorType::ProcessCrash, RecoveryStrategy::Restart);
-        recovery_strategies.insert(ErrorType::NetworkPartition, RecoveryStrategy::Wait(Duration::from_secs(30)));
+        recovery_strategies.insert(
+            ErrorType::NetworkPartition,
+            RecoveryStrategy::Wait(Duration::from_secs(30)),
+        );
         recovery_strategies.insert(ErrorType::ConsensusFailure, RecoveryStrategy::Rollback);
         recovery_strategies.insert(ErrorType::SyncFailed, RecoveryStrategy::Restart);
-        
+
         SelfHealingSystem {
             config: SelfHealingConfig::default(),
             health_checker: None,
@@ -239,32 +245,37 @@ impl SelfHealingSystem {
     /// 检测并修复问题
     pub async fn detect_and_heal(&mut self) -> Result<Vec<FailureRecord>> {
         let mut healed = Vec::new();
-        
+
         if let Some(ref checker) = self.health_checker {
             let health = checker.check().await;
             self.last_check = Some(Instant::now());
-            
+
             for (component, status) in &health.components {
                 if !status.healthy {
                     if let Some(ref error_type) = status.error {
                         let message = status.message.clone().unwrap_or_default();
-                        
-                        warn!("检测到故障: {:?} - {:?}: {}", component, error_type, message);
-                        
+
+                        warn!(
+                            "检测到故障: {:?} - {:?}: {}",
+                            component, error_type, message
+                        );
+
                         // 记录故障
                         let record = FailureRecord {
                             component: component.clone(),
                             error_type: error_type.clone(),
                             message: message.clone(),
                             timestamp: Instant::now(),
-                            recovery: self.recovery_strategies.get(error_type)
+                            recovery: self
+                                .recovery_strategies
+                                .get(error_type)
                                 .cloned()
                                 .unwrap_or(RecoveryStrategy::Alert),
                             recovered: false,
                         };
-                        
+
                         self.failure_history.push(record.clone());
-                        
+
                         // 尝试恢复
                         if self.config.auto_recovery {
                             if let Some(record) = self.try_recover(component, error_type).await? {
@@ -275,47 +286,54 @@ impl SelfHealingSystem {
                 }
             }
         }
-        
+
         Ok(healed)
     }
 
     /// 尝试恢复
-    async fn try_recover(&mut self, component: &Component, error_type: &ErrorType) -> Result<Option<FailureRecord>> {
+    async fn try_recover(
+        &mut self,
+        component: &Component,
+        error_type: &ErrorType,
+    ) -> Result<Option<FailureRecord>> {
         // 检查恢复尝试次数
         let attempts = self.recovery_attempts.get(component).copied().unwrap_or(0);
         if attempts >= self.config.max_recovery_attempts {
             error!("组件 {:?} 恢复失败次数过多，停止尝试", component);
             return Ok(None);
         }
-        
+
         // 获取恢复策略
-        let strategy = self.recovery_strategies.get(error_type)
+        let strategy = self
+            .recovery_strategies
+            .get(error_type)
             .cloned()
             .unwrap_or(RecoveryStrategy::Alert);
-        
+
         info!("尝试恢复 {:?} 使用策略 {:?}", component, strategy);
-        
+
         // 执行恢复
         if let Some(ref executor) = self.recovery_executor {
             match executor.execute(component, &strategy).await {
                 Ok(()) => {
                     info!("组件 {:?} 恢复成功", component);
                     self.recovery_attempts.remove(component);
-                    
+
                     // 更新故障记录
                     if let Some(record) = self.failure_history.last_mut() {
                         record.recovered = true;
                     }
-                    
+
                     return Ok(self.failure_history.last().cloned());
                 }
                 Err(e) => {
                     warn!("组件 {:?} 恢复失败: {}", component, e);
-                    self.recovery_attempts.insert(component.clone(), attempts + 1);
+                    self.recovery_attempts
+                        .insert(component.clone(), attempts + 1);
                 }
             }
         }
-        
+
         Ok(None)
     }
 
@@ -334,7 +352,7 @@ impl SelfHealingSystem {
     pub fn health_summary(&self) -> HealthSummary {
         let total_failures = self.failure_history.len();
         let recovered = self.failure_history.iter().filter(|r| r.recovered).count();
-        
+
         HealthSummary {
             total_failures,
             recovered,
@@ -377,29 +395,37 @@ mod tests {
     #[test]
     fn test_recovery_strategies() {
         let system = SelfHealingSystem::new();
-        
+
         // 检查默认策略
-        assert!(system.recovery_strategies.contains_key(&ErrorType::ConnectionFailed));
-        assert!(system.recovery_strategies.contains_key(&ErrorType::OutOfMemory));
-        assert!(system.recovery_strategies.contains_key(&ErrorType::DataCorruption));
+        assert!(system
+            .recovery_strategies
+            .contains_key(&ErrorType::ConnectionFailed));
+        assert!(system
+            .recovery_strategies
+            .contains_key(&ErrorType::OutOfMemory));
+        assert!(system
+            .recovery_strategies
+            .contains_key(&ErrorType::DataCorruption));
     }
 
     #[test]
     fn test_add_recovery_strategy() {
         let mut system = SelfHealingSystem::new();
-        
+
         system.add_recovery_strategy(
             ErrorType::Custom("test".to_string()),
             RecoveryStrategy::Restart,
         );
-        
-        assert!(system.recovery_strategies.contains_key(&ErrorType::Custom("test".to_string())));
+
+        assert!(system
+            .recovery_strategies
+            .contains_key(&ErrorType::Custom("test".to_string())));
     }
 
     #[test]
     fn test_health_summary() {
         let mut system = SelfHealingSystem::new();
-        
+
         // 添加一些故障记录
         system.failure_history.push(FailureRecord {
             component: Component::Database,
@@ -409,7 +435,7 @@ mod tests {
             recovery: RecoveryStrategy::Restart,
             recovered: true,
         });
-        
+
         system.failure_history.push(FailureRecord {
             component: Component::Network,
             error_type: ErrorType::Timeout,
@@ -418,7 +444,7 @@ mod tests {
             recovery: RecoveryStrategy::Wait(Duration::from_secs(10)),
             recovered: false,
         });
-        
+
         let summary = system.health_summary();
         assert_eq!(summary.total_failures, 2);
         assert_eq!(summary.recovered, 1);

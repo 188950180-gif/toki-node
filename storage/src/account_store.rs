@@ -52,11 +52,7 @@ impl AccountStore {
     }
 
     /// 更新账户余额
-    pub fn update_balance(
-        &self,
-        address: &Address,
-        new_balance: u64,
-    ) -> Result<(), StorageError> {
+    pub fn update_balance(&self, address: &Address, new_balance: u64) -> Result<(), StorageError> {
         let mut account = self
             .get_account(address)?
             .ok_or_else(|| StorageError::NotFound(address.to_string()))?;

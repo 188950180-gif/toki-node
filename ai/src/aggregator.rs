@@ -6,13 +6,13 @@
 //! - 平权削减
 //! - 公益执行
 
+use anyhow::Result;
+use parking_lot::RwLock;
 use std::collections::HashMap;
 use std::sync::Arc;
-use parking_lot::RwLock;
-use anyhow::Result;
-use tracing::{info, warn, debug};
+use tracing::{debug, info, warn};
 
-use toki_core::{Address, Hash, Block, TOKI_BASE_UNIT};
+use toki_core::{Address, Block, Hash, TOKI_BASE_UNIT};
 
 /// AI 经济配置
 #[derive(Clone, Debug)]
@@ -51,12 +51,12 @@ impl AIAggregator {
     /// 创建新的 AI 聚合器
     pub fn new(config: AIConfig) -> Self {
         let aggregate_account = Address::new([2u8; 32]); // AI 聚合账户
-        
+
         info!("创建 AI 聚合器");
         info!("聚合比例: {}", config.aggregate_ratio);
         info!("平权阈值: {}", config.equalize_threshold);
         info!("公益比例: {}", config.charity_ratio);
-        
+
         AIAggregator {
             config,
             balances: Arc::new(RwLock::new(HashMap::new())),
@@ -67,19 +67,19 @@ impl AIAggregator {
     /// 处理区块
     pub fn process_block(&self, block: &Block) -> Result<()> {
         info!("处理区块: {}", block.height());
-        
+
         // 1. 收集区块奖励
         let block_reward = self.calculate_block_reward(block);
-        
+
         // 2. 聚合收益
         self.aggregate_rewards(block_reward)?;
-        
+
         // 3. 平权削减
         self.equalize()?;
-        
+
         // 4. 公益执行
         self.donate_to_charity()?;
-        
+
         Ok(())
     }
 
@@ -92,11 +92,11 @@ impl AIAggregator {
     /// 聚合收益
     fn aggregate_rewards(&self, total_reward: u64) -> Result<()> {
         let aggregate_amount = (total_reward as f64 * self.config.aggregate_ratio) as u64;
-        
+
         let mut balances = self.balances.write();
         let current = balances.entry(self.aggregate_account.clone()).or_insert(0);
         *current += aggregate_amount;
-        
+
         info!("聚合收益: {} -> 聚合账户", aggregate_amount);
         Ok(())
     }
@@ -105,7 +105,7 @@ impl AIAggregator {
     fn equalize(&self) -> Result<()> {
         let mut balances = self.balances.write();
         let mut total_excess = 0u64;
-        
+
         // 计算超额部分
         for (_, balance) in balances.iter_mut() {
             if *balance > self.config.equalize_threshold {
@@ -114,12 +114,12 @@ impl AIAggregator {
                 total_excess += excess;
             }
         }
-        
+
         // 重新分配
         if total_excess > 0 {
             self.redistribute(&mut balances, total_excess)?;
         }
-        
+
         Ok(())
     }
 
@@ -129,12 +129,12 @@ impl AIAggregator {
         if count == 0 {
             return Ok(());
         }
-        
+
         let per_account = total / count as u64;
         for (_, balance) in balances.iter_mut() {
             *balance += per_account;
         }
-        
+
         info!("重新分配: {} -> {} 个账户", total, count);
         Ok(())
     }
@@ -142,18 +142,20 @@ impl AIAggregator {
     /// 公益执行
     fn donate_to_charity(&self) -> Result<()> {
         let mut balances = self.balances.write();
-        
+
         // 从所有账户中提取公益金
         let total_donation = balances.values().sum::<u64>() as f64 * self.config.charity_ratio;
         let donation = total_donation as u64;
-        
+
         if donation > 0 {
-            let charity_balance = balances.entry(self.config.charity_address.clone()).or_insert(0);
+            let charity_balance = balances
+                .entry(self.config.charity_address.clone())
+                .or_insert(0);
             *charity_balance += donation;
-            
+
             info!("公益捐赠: {} -> 公益账户", donation);
         }
-        
+
         Ok(())
     }
 
@@ -176,7 +178,7 @@ impl AIAggregator {
     /// 获取统计信息
     pub fn get_stats(&self) -> AggregatorStats {
         let balances = self.balances.read();
-        
+
         AggregatorStats {
             total_accounts: balances.len(),
             aggregate_balance: self.get_aggregate_balance(),
@@ -219,7 +221,7 @@ mod tests {
     fn test_process_block() {
         let aggregator = AIAggregator::default();
         let block = Block::genesis();
-        
+
         let result = aggregator.process_block(&block);
         assert!(result.is_ok());
         assert!(aggregator.get_aggregate_balance() > 0);
@@ -229,7 +231,7 @@ mod tests {
     fn test_get_balance() {
         let aggregator = AIAggregator::default();
         let address = Address::new([1u8; 32]);
-        
+
         let balance = aggregator.get_balance(&address);
         assert_eq!(balance, 0);
     }
@@ -238,7 +240,7 @@ mod tests {
     fn test_get_stats() {
         let aggregator = AIAggregator::default();
         let stats = aggregator.get_stats();
-        
+
         assert_eq!(stats.total_accounts, 0);
         assert_eq!(stats.total_balance, 0);
     }

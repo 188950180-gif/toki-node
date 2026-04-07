@@ -5,11 +5,11 @@
 //! - 公益项目执行
 //! - 透明度追踪
 
+use anyhow::Result;
+use parking_lot::RwLock;
 use std::collections::HashMap;
 use std::sync::Arc;
-use parking_lot::RwLock;
-use anyhow::Result;
-use tracing::{info, warn, debug};
+use tracing::{debug, info, warn};
 
 use toki_core::{Address, Hash, TOKI_BASE_UNIT};
 
@@ -59,7 +59,7 @@ impl CharitySystem {
     /// 创建新的公益系统
     pub fn new(charity_address: Address) -> Self {
         info!("创建公益系统");
-        
+
         CharitySystem {
             charity_pool: Arc::new(RwLock::new(0)),
             projects: Arc::new(RwLock::new(HashMap::new())),
@@ -78,41 +78,46 @@ impl CharitySystem {
     /// 创建公益项目
     pub fn create_project(&self, project: CharityProject) -> Result<()> {
         let mut projects = self.projects.write();
-        
+
         if projects.contains_key(&project.id) {
             return Err(anyhow::anyhow!("项目已存在"));
         }
-        
-        info!("创建公益项目: {} (目标: {})", project.name, project.target_amount);
+
+        info!(
+            "创建公益项目: {} (目标: {})",
+            project.name, project.target_amount
+        );
         projects.insert(project.id.clone(), project);
-        
+
         Ok(())
     }
 
     /// 向项目捐赠
     pub fn donate_to_project(&self, project_id: &str, amount: u64) -> Result<()> {
         let mut pool = self.charity_pool.write();
-        
+
         if *pool < amount {
             return Err(anyhow::anyhow!("公益资金不足"));
         }
-        
+
         *pool -= amount;
-        
+
         let mut projects = self.projects.write();
         if let Some(project) = projects.get_mut(project_id) {
             project.raised_amount += amount;
-            
-            info!("捐赠给项目 {}: {} (总计: {}/{})", 
-                project.name, amount, project.raised_amount, project.target_amount);
-            
+
+            info!(
+                "捐赠给项目 {}: {} (总计: {}/{})",
+                project.name, amount, project.raised_amount, project.target_amount
+            );
+
             // 检查是否达到目标
             if project.raised_amount >= project.target_amount {
                 project.status = CharityStatus::Completed;
                 info!("项目 {} 已完成!", project.name);
             }
         }
-        
+
         Ok(())
     }
 
@@ -135,15 +140,14 @@ impl CharitySystem {
     pub fn get_stats(&self) -> CharityStats {
         let pool_balance = self.get_pool_balance();
         let projects = self.get_all_projects();
-        
-        let total_raised = projects.iter()
-            .map(|p| p.raised_amount)
-            .sum();
-        
-        let completed_projects = projects.iter()
+
+        let total_raised = projects.iter().map(|p| p.raised_amount).sum();
+
+        let completed_projects = projects
+            .iter()
             .filter(|p| p.status == CharityStatus::Completed)
             .count();
-        
+
         CharityStats {
             pool_balance,
             total_raised,
@@ -186,14 +190,14 @@ mod tests {
     fn test_add_funds() {
         let charity = CharitySystem::default();
         charity.add_funds(1000 * TOKI_BASE_UNIT).unwrap();
-        
+
         assert_eq!(charity.get_pool_balance(), 1000 * TOKI_BASE_UNIT);
     }
 
     #[test]
     fn test_create_project() {
         let charity = CharitySystem::default();
-        
+
         let project = CharityProject {
             id: "test_project".to_string(),
             name: "Test Project".to_string(),
@@ -204,7 +208,7 @@ mod tests {
             created_at: chrono::Utc::now().timestamp(),
             status: CharityStatus::Fundraising,
         };
-        
+
         charity.create_project(project).unwrap();
         assert_eq!(charity.get_all_projects().len(), 1);
     }
@@ -212,9 +216,9 @@ mod tests {
     #[test]
     fn test_donate_to_project() {
         let charity = CharitySystem::default();
-        
+
         charity.add_funds(100 * TOKI_BASE_UNIT).unwrap();
-        
+
         let project = CharityProject {
             id: "test_project".to_string(),
             name: "Test Project".to_string(),
@@ -225,10 +229,12 @@ mod tests {
             created_at: chrono::Utc::now().timestamp(),
             status: CharityStatus::Fundraising,
         };
-        
+
         charity.create_project(project.clone()).unwrap();
-        charity.donate_to_project("test_project", 5 * TOKI_BASE_UNIT).unwrap();
-        
+        charity
+            .donate_to_project("test_project", 5 * TOKI_BASE_UNIT)
+            .unwrap();
+
         let updated = charity.get_project("test_project").unwrap();
         assert_eq!(updated.raised_amount, 5 * TOKI_BASE_UNIT);
     }
@@ -237,7 +243,7 @@ mod tests {
     fn test_get_stats() {
         let charity = CharitySystem::default();
         let stats = charity.get_stats();
-        
+
         assert_eq!(stats.pool_balance, 0);
         assert_eq!(stats.total_raised, 0);
         assert_eq!(stats.project_count, 0);

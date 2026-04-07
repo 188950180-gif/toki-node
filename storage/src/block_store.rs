@@ -90,11 +90,7 @@ impl BlockStore {
     }
 
     /// 获取区块范围
-    pub fn get_blocks_range(
-        &self,
-        start: u64,
-        end: u64,
-    ) -> Result<Vec<Block>, StorageError> {
+    pub fn get_blocks_range(&self, start: u64, end: u64) -> Result<Vec<Block>, StorageError> {
         let mut blocks = Vec::new();
         for height in start..=end {
             if let Some(block) = self.get_block_by_height(height)? {
@@ -105,7 +101,7 @@ impl BlockStore {
     }
 
     /// 获取创世区块时间戳
-    /// 
+    ///
     /// # 返回
     /// - Some(timestamp): 创世区块的时间戳（秒）
     /// - None: 创世区块不存在

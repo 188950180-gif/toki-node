@@ -1,5 +1,5 @@
 //! 投票模块
-//! 
+//!
 //! 实现投票权和投票记录
 
 use chrono::{DateTime, Utc};
@@ -89,7 +89,7 @@ impl VoteResult {
     /// 添加投票
     pub fn add_vote(&mut self, vote: &Vote) {
         self.total_votes += 1;
-        
+
         match vote.option {
             VoteOption::For => {
                 self.votes_for += 1;
@@ -152,7 +152,7 @@ mod tests {
     fn test_vote_creation() {
         let voter = Address::new([1u8; 32]);
         let vote = Vote::new(1, voter, VoteOption::For, 1000);
-        
+
         assert_eq!(vote.proposal_id, 1);
         assert_eq!(vote.option, VoteOption::For);
     }
@@ -160,13 +160,13 @@ mod tests {
     #[test]
     fn test_vote_result() {
         let mut result = VoteResult::new(1);
-        
+
         let voter1 = Address::new([1u8; 32]);
         let voter2 = Address::new([2u8; 32]);
-        
+
         result.add_vote(&Vote::new(1, voter1, VoteOption::For, 100));
         result.add_vote(&Vote::new(1, voter2, VoteOption::Against, 50));
-        
+
         assert_eq!(result.total_votes, 2);
         assert_eq!(result.votes_for, 1);
         assert_eq!(result.votes_against, 1);
@@ -177,12 +177,12 @@ mod tests {
     #[test]
     fn test_pass_rate() {
         let mut result = VoteResult::new(1);
-        
+
         result.votes_for = 60;
         result.votes_against = 30;
         result.votes_abstain = 10;
         result.total_votes = 100;
-        
+
         let rate = result.pass_rate();
         assert!((rate - 0.6).abs() < 0.001);
     }

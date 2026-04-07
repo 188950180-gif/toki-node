@@ -1,14 +1,17 @@
 //! 挖矿集成模块
-//! 
+//!
 //! 实现挖矿与网络广播的完整集成
 
-use std::sync::{Arc, atomic::{AtomicBool, AtomicU64, Ordering}};
+use std::sync::mpsc::{channel, Receiver, Sender};
+use std::sync::{
+    atomic::{AtomicBool, AtomicU64, Ordering},
+    Arc,
+};
 use std::thread;
 use std::time::{Duration, Instant};
-use std::sync::mpsc::{Sender, Receiver, channel};
-use tracing::{info, warn, debug};
+use tracing::{debug, info, warn};
 
-use toki_core::{Block, Transaction, Hash};
+use toki_core::{Block, Hash, Transaction};
 
 /// 挖矿事件
 #[derive(Debug, Clone)]
@@ -68,8 +71,12 @@ impl IntegratedMiner {
     /// 创建新的集成挖矿器
     pub fn new(thread_count: usize) -> Self {
         let (sender, receiver) = channel();
-        let actual_threads = if thread_count == 0 { num_cpus::get() } else { thread_count };
-        
+        let actual_threads = if thread_count == 0 {
+            num_cpus::get()
+        } else {
+            thread_count
+        };
+
         IntegratedMiner {
             running: Arc::new(AtomicBool::new(false)),
             event_sender: sender,
@@ -86,7 +93,7 @@ impl IntegratedMiner {
             warn!("挖矿器已在运行");
             return;
         }
-        
+
         info!("启动集成挖矿器，线程数: {}", self.thread_count);
         let _ = self.event_sender.send(MiningEvent::StateChanged(true));
     }

@@ -1,13 +1,13 @@
 //! Toki 超主权数字货币平台 - API 模块
 
-pub mod rest;
-pub mod websocket;
 pub mod handlers;
+pub mod rest;
 pub mod routes;
+pub mod websocket;
 
+pub use handlers::ApiState;
 pub use rest::*;
 pub use websocket::*;
-pub use handlers::ApiState;
 
 #[cfg(test)]
 mod tests {

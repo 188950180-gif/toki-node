@@ -1,13 +1,16 @@
 //! 挖矿与网络完整集成
-//! 
+//!
 //! 实现挖矿成功后自动广播到 P2P 网络
 
-use std::sync::{Arc, atomic::{AtomicBool, AtomicU64, Ordering}};
-use std::time::{Duration, Instant};
-use std::sync::mpsc::{Sender, Receiver, channel};
-use serde::{Deserialize, Serialize};
 use anyhow::Result;
-use tracing::{info, warn, debug, error};
+use serde::{Deserialize, Serialize};
+use std::sync::mpsc::{channel, Receiver, Sender};
+use std::sync::{
+    atomic::{AtomicBool, AtomicU64, Ordering},
+    Arc,
+};
+use std::time::{Duration, Instant};
+use tracing::{debug, error, info, warn};
 
 use toki_core::{Block, Hash, Transaction};
 
@@ -15,10 +18,10 @@ use toki_core::{Block, Hash, Transaction};
 pub trait NetworkBroadcaster: Send + Sync {
     /// 广播区块到网络
     fn broadcast_block(&self, block: &Block) -> Result<BroadcastResult>;
-    
+
     /// 广播交易到网络
     fn broadcast_transaction(&self, tx: &Transaction) -> Result<BroadcastResult>;
-    
+
     /// 获取连接的节点数
     fn peer_count(&self) -> usize;
 }
@@ -51,10 +54,7 @@ pub enum MiningNetworkEvent {
         timestamp: u64,
     },
     /// 广播开始
-    BroadcastStarted {
-        block_hash: Hash,
-        peer_count: usize,
-    },
+    BroadcastStarted { block_hash: Hash, peer_count: usize },
     /// 广播完成
     BroadcastCompleted {
         block_hash: Hash,
@@ -63,16 +63,11 @@ pub enum MiningNetworkEvent {
         duration_ms: u64,
     },
     /// 区块被远程节点接受
-    BlockAccepted {
-        block_hash: Hash,
-        by_peer: String,
-    },
+    BlockAccepted { block_hash: Hash, by_peer: String },
     /// 挖矿停止
     MiningStopped,
     /// 错误
-    Error {
-        message: String,
-    },
+    Error { message: String },
 }
 
 /// 挖矿网络集成配置
@@ -144,7 +139,7 @@ impl MiningNetworkIntegration {
         } else {
             config.thread_count
         };
-        
+
         MiningNetworkIntegration {
             config: MiningNetworkConfig {
                 thread_count: threads,
@@ -173,14 +168,14 @@ impl MiningNetworkIntegration {
             warn!("挖矿已在运行");
             return Ok(());
         }
-        
+
         info!("启动挖矿网络集成，线程数: {}", self.config.thread_count);
-        
+
         let _ = self.event_sender.send(MiningNetworkEvent::MiningStarted {
             thread_count: self.config.thread_count,
             difficulty: self.current_difficulty.load(Ordering::SeqCst),
         });
-        
+
         Ok(())
     }
 
@@ -195,19 +190,19 @@ impl MiningNetworkIntegration {
     pub fn on_block_mined(&self, block: &Block, miner: &str) -> Result<bool> {
         let block_hash = block.hash();
         let height = block.header.height;
-        
+
         info!("🎉 区块挖出! 高度={}, 哈希={}", height, block_hash);
-        
+
         // 更新统计
         self.blocks_mined.fetch_add(1, Ordering::SeqCst);
         self.current_height.store(height, Ordering::SeqCst);
-        
+
         // 发送事件
         let timestamp = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
             .as_secs();
-        
+
         let _ = self.event_sender.send(MiningNetworkEvent::BlockMined {
             height,
             hash: block_hash,
@@ -215,7 +210,7 @@ impl MiningNetworkIntegration {
             nonce: block.header.nonce,
             timestamp,
         });
-        
+
         // 自动广播
         if self.config.auto_broadcast {
             self.broadcast_block_with_retry(block)
@@ -227,37 +222,49 @@ impl MiningNetworkIntegration {
     /// 广播区块（带重试）
     fn broadcast_block_with_retry(&self, block: &Block) -> Result<bool> {
         let block_hash = block.hash();
-        
+
         if let Some(ref broadcaster) = self.broadcaster {
             let peer_count = broadcaster.peer_count();
-            
+
             if peer_count == 0 {
                 warn!("没有连接的节点，无法广播区块");
                 return Ok(false);
             }
-            
-            let _ = self.event_sender.send(MiningNetworkEvent::BroadcastStarted {
-                block_hash,
-                peer_count,
-            });
-            
+
+            let _ = self
+                .event_sender
+                .send(MiningNetworkEvent::BroadcastStarted {
+                    block_hash,
+                    peer_count,
+                });
+
             // 重试广播
             for attempt in 0..self.config.max_broadcast_retries {
-                debug!("广播区块 {} (尝试 {}/{})", block_hash, attempt + 1, self.config.max_broadcast_retries);
-                
+                debug!(
+                    "广播区块 {} (尝试 {}/{})",
+                    block_hash,
+                    attempt + 1,
+                    self.config.max_broadcast_retries
+                );
+
                 match broadcaster.broadcast_block(block) {
                     Ok(result) => {
                         if result.success_count > 0 {
                             self.broadcast_success.fetch_add(1, Ordering::SeqCst);
-                            
-                            let _ = self.event_sender.send(MiningNetworkEvent::BroadcastCompleted {
-                                block_hash,
-                                success: result.success_count,
-                                failed: result.failed_count,
-                                duration_ms: result.duration_ms,
-                            });
-                            
-                            info!("✅ 区块广播成功: {} -> {} 节点", block_hash, result.success_count);
+
+                            let _ =
+                                self.event_sender
+                                    .send(MiningNetworkEvent::BroadcastCompleted {
+                                        block_hash,
+                                        success: result.success_count,
+                                        failed: result.failed_count,
+                                        duration_ms: result.duration_ms,
+                                    });
+
+                            info!(
+                                "✅ 区块广播成功: {} -> {} 节点",
+                                block_hash, result.success_count
+                            );
                             return Ok(true);
                         }
                     }
@@ -265,19 +272,19 @@ impl MiningNetworkIntegration {
                         warn!("广播失败 (尝试 {}): {}", attempt + 1, e);
                     }
                 }
-                
+
                 // 等待后重试
                 std::thread::sleep(Duration::from_millis(100 * (attempt + 1) as u64));
             }
-            
+
             // 所有重试都失败
             self.broadcast_failed.fetch_add(1, Ordering::SeqCst);
             error!("❌ 区块广播失败: {}", block_hash);
-            
+
             let _ = self.event_sender.send(MiningNetworkEvent::Error {
                 message: format!("广播失败: {}", block_hash),
             });
-            
+
             Ok(false)
         } else {
             warn!("未设置网络广播器");
@@ -288,7 +295,7 @@ impl MiningNetworkIntegration {
     /// 处理远程节点接受区块
     pub fn on_block_accepted(&self, block_hash: Hash, by_peer: &str) {
         debug!("区块 {} 被 {} 接受", block_hash, by_peer);
-        
+
         let _ = self.event_sender.send(MiningNetworkEvent::BlockAccepted {
             block_hash,
             by_peer: by_peer.to_string(),
@@ -309,13 +316,18 @@ impl MiningNetworkIntegration {
             blocks_mined: self.blocks_mined.load(Ordering::SeqCst),
             broadcast_success: self.broadcast_success.load(Ordering::SeqCst),
             broadcast_failed: self.broadcast_failed.load(Ordering::SeqCst),
-            peer_count: self.broadcaster.as_ref().map(|b| b.peer_count()).unwrap_or(0),
+            peer_count: self
+                .broadcaster
+                .as_ref()
+                .map(|b| b.peer_count())
+                .unwrap_or(0),
         }
     }
 
     /// 更新难度
     pub fn update_difficulty(&self, new_difficulty: u64) {
-        self.current_difficulty.store(new_difficulty, Ordering::SeqCst);
+        self.current_difficulty
+            .store(new_difficulty, Ordering::SeqCst);
         info!("难度更新: {}", new_difficulty);
     }
 }
@@ -351,7 +363,7 @@ impl NetworkBroadcaster for DefaultBroadcaster {
             duration_ms: 10,
         })
     }
-    
+
     fn broadcast_transaction(&self, _tx: &Transaction) -> Result<BroadcastResult> {
         Ok(BroadcastResult {
             success_count: self.peer_count,
@@ -359,7 +371,7 @@ impl NetworkBroadcaster for DefaultBroadcaster {
             duration_ms: 5,
         })
     }
-    
+
     fn peer_count(&self) -> usize {
         self.peer_count
     }
@@ -373,7 +385,7 @@ mod tests {
     fn test_mining_network_integration() {
         let config = MiningNetworkConfig::default();
         let integration = MiningNetworkIntegration::new(config);
-        
+
         assert!(!integration.stats().is_running);
         assert!(integration.config.thread_count > 0);
     }
@@ -382,10 +394,10 @@ mod tests {
     fn test_start_stop() {
         let config = MiningNetworkConfig::default();
         let integration = MiningNetworkIntegration::new(config);
-        
+
         integration.start().unwrap();
         assert!(integration.stats().is_running);
-        
+
         integration.stop();
         assert!(!integration.stats().is_running);
     }

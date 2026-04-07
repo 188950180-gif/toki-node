@@ -1,14 +1,14 @@
 //! 链上自动升级模块
-//! 
+//!
 //! 通过治理提案实现链上自动升级
 
+use anyhow::Result;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
-use serde::{Deserialize, Serialize};
-use anyhow::Result;
 use tracing::{info, warn};
 
-use toki_core::{Hash, Address};
+use toki_core::{Address, Hash};
 
 /// 升级提案 ID
 pub type ProposalId = Hash;
@@ -144,10 +144,10 @@ pub struct OnChainUpgradeConfig {
 impl Default for OnChainUpgradeConfig {
     fn default() -> Self {
         OnChainUpgradeConfig {
-            voting_period: 10080,    // 约 1 周（10秒出块）
-            lock_period: 20160,      // 约 2 周
-            pass_threshold: 0.667,   // 2/3 多数
-            min_participation: 0.3,  // 30% 参与率
+            voting_period: 10080,          // 约 1 周（10秒出块）
+            lock_period: 20160,            // 约 2 周
+            pass_threshold: 0.667,         // 2/3 多数
+            min_participation: 0.3,        // 30% 参与率
             min_proposer_stake: 1_000_000, // 100 万 toki
             auto_execute: true,
         }
@@ -213,16 +213,17 @@ impl OnChainUpgradeManager {
         if target_version <= self.current_version {
             return Err(anyhow::anyhow!("目标版本必须高于当前版本"));
         }
-        
+
         // 检查是否已有相同类型的待处理升级
         for proposal in self.proposals.values() {
-            if proposal.upgrade_type == upgrade_type 
-                && proposal.phase != UpgradePhase::Completed 
-                && proposal.phase != UpgradePhase::Cancelled {
+            if proposal.upgrade_type == upgrade_type
+                && proposal.phase != UpgradePhase::Completed
+                && proposal.phase != UpgradePhase::Cancelled
+            {
                 return Err(anyhow::anyhow!("已有相同类型的待处理升级"));
             }
         }
-        
+
         let now = self.current_height;
         let upgrade_type_clone = upgrade_type.clone();
         let proposal = UpgradeProposal {
@@ -244,14 +245,18 @@ impl OnChainUpgradeManager {
             description,
             activation_height: 0,
         };
-        
+
         let id = proposal.id;
         self.proposals.insert(id, proposal);
         self.votes.insert(id, Vec::new());
-        
-        info!("创建升级提案: {} -> {}, 类型: {}", 
-            self.current_version, target_version, upgrade_type.clone());
-        
+
+        info!(
+            "创建升级提案: {} -> {}, 类型: {}",
+            self.current_version,
+            target_version,
+            upgrade_type.clone()
+        );
+
         Ok(id)
     }
 
@@ -263,20 +268,21 @@ impl OnChainUpgradeManager {
         choice: VoteChoice,
         weight: u64,
     ) -> Result<()> {
-        let proposal = self.proposals.get_mut(proposal_id)
+        let proposal = self
+            .proposals
+            .get_mut(proposal_id)
             .ok_or_else(|| anyhow::anyhow!("提案不存在"))?;
-        
+
         // 检查投票阶段
         if proposal.phase != UpgradePhase::Voting {
             return Err(anyhow::anyhow!("不在投票阶段"));
         }
-        
+
         // 检查投票时间
-        if self.current_height < proposal.vote_start 
-            || self.current_height > proposal.vote_end {
+        if self.current_height < proposal.vote_start || self.current_height > proposal.vote_end {
             return Err(anyhow::anyhow!("不在投票时间窗口"));
         }
-        
+
         // 记录投票
         let vote = UpgradeVote {
             proposal_id: *proposal_id,
@@ -285,16 +291,16 @@ impl OnChainUpgradeManager {
             weight,
             timestamp: self.current_height,
         };
-        
+
         // 更新计票
         match choice {
             VoteChoice::For => proposal.votes_for += weight,
             VoteChoice::Against => proposal.votes_against += weight,
             VoteChoice::Abstain => proposal.votes_abstain += weight,
         }
-        
+
         self.votes.get_mut(proposal_id).unwrap().push(vote);
-        
+
         Ok(())
     }
 
@@ -302,7 +308,7 @@ impl OnChainUpgradeManager {
     pub fn update_height(&mut self, height: u64) -> Result<Vec<UpgradeAction>> {
         self.current_height = height;
         let mut actions = Vec::new();
-        
+
         for proposal in self.proposals.values_mut() {
             match proposal.phase {
                 UpgradePhase::Proposed => {
@@ -314,12 +320,13 @@ impl OnChainUpgradeManager {
                 UpgradePhase::Voting => {
                     if height >= proposal.vote_end {
                         // 检查是否通过
-                        let total = proposal.votes_for + proposal.votes_against + proposal.votes_abstain;
+                        let total =
+                            proposal.votes_for + proposal.votes_against + proposal.votes_abstain;
                         let participation = total as f64 / 1_000_000_000_000.0; // 假设总质押
-                        
+
                         if participation >= self.config.min_participation {
                             let approval = proposal.votes_for as f64 / total as f64;
-                            
+
                             if approval >= self.config.pass_threshold {
                                 proposal.phase = UpgradePhase::Approved;
                                 info!("升级提案通过: {}", proposal.id);
@@ -344,7 +351,7 @@ impl OnChainUpgradeManager {
                     if height >= proposal.execute_time {
                         proposal.phase = UpgradePhase::Executing;
                         info!("升级提案开始执行: {}", proposal.id);
-                        
+
                         actions.push(UpgradeAction::Execute {
                             proposal_id: proposal.id,
                             upgrade_type: proposal.upgrade_type.clone(),
@@ -357,7 +364,7 @@ impl OnChainUpgradeManager {
                     // 执行完成
                     proposal.phase = UpgradePhase::Completed;
                     self.current_version = proposal.target_version.clone();
-                    
+
                     self.executed_upgrades.push(ExecutedUpgrade {
                         proposal_id: proposal.id,
                         upgrade_type: proposal.upgrade_type.clone(),
@@ -366,8 +373,11 @@ impl OnChainUpgradeManager {
                         to_version: proposal.target_version.clone(),
                         timestamp: height,
                     });
-                    
-                    info!("升级完成: {} -> {}", proposal.current_version, proposal.target_version);
+
+                    info!(
+                        "升级完成: {} -> {}",
+                        proposal.current_version, proposal.target_version
+                    );
                     actions.push(UpgradeAction::Completed {
                         proposal_id: proposal.id,
                         new_version: proposal.target_version.clone(),
@@ -376,7 +386,7 @@ impl OnChainUpgradeManager {
                 _ => {}
             }
         }
-        
+
         Ok(actions)
     }
 
@@ -387,9 +397,9 @@ impl OnChainUpgradeManager {
 
     /// 获取活跃提案
     pub fn active_proposals(&self) -> Vec<&UpgradeProposal> {
-        self.proposals.values()
-            .filter(|p| p.phase != UpgradePhase::Completed 
-                && p.phase != UpgradePhase::Cancelled)
+        self.proposals
+            .values()
+            .filter(|p| p.phase != UpgradePhase::Completed && p.phase != UpgradePhase::Cancelled)
             .collect()
     }
 

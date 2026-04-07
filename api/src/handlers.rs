@@ -6,7 +6,7 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-use toki_storage::{BlockStore, AccountStore};
+use toki_storage::{AccountStore, BlockStore};
 use tracing::info;
 
 /// API 状态
@@ -184,15 +184,13 @@ pub async fn health_check() -> Json<ApiResponse<HealthResponse>> {
 }
 
 /// 获取节点信息
-pub async fn get_node_info(
-    State(state): State<ApiState>,
-) -> Json<ApiResponse<NodeInfoResponse>> {
+pub async fn get_node_info(State(state): State<ApiState>) -> Json<ApiResponse<NodeInfoResponse>> {
     // 获取最新区块高度
     let height = match state.block_store.get_latest_block() {
         Ok(Some(block)) => block.height(),
         _ => 0,
     };
-    
+
     Json(ApiResponse::success(NodeInfoResponse {
         node_id: "unknown".to_string(), // TODO: 从 P2P 模块获取
         version: env!("CARGO_PKG_VERSION").to_string(),
@@ -221,9 +219,7 @@ pub async fn get_block(
 }
 
 /// 获取最新区块
-pub async fn get_latest_block(
-    State(state): State<ApiState>,
-) -> Json<ApiResponse<BlockResponse>> {
+pub async fn get_latest_block(State(state): State<ApiState>) -> Json<ApiResponse<BlockResponse>> {
     match state.block_store.get_latest_block() {
         Ok(Some(block)) => Json(ApiResponse::success(BlockResponse {
             height: block.height(),
@@ -233,7 +229,10 @@ pub async fn get_latest_block(
             difficulty: block.header.difficulty,
         })),
         Ok(None) => Json(ApiResponse::error("No blocks found")),
-        Err(e) => Json(ApiResponse::error(&format!("Failed to get latest block: {}", e))),
+        Err(e) => Json(ApiResponse::error(&format!(
+            "Failed to get latest block: {}",
+            e
+        ))),
     }
 }
 
@@ -243,7 +242,7 @@ pub async fn get_block_range(
     Query(query): Query<BlockRangeQuery>,
 ) -> Json<ApiResponse<Vec<BlockResponse>>> {
     let mut blocks = Vec::new();
-    
+
     for height in query.start..=query.end {
         match state.block_store.get_block_by_height(height) {
             Ok(Some(block)) => blocks.push(BlockResponse {
@@ -257,7 +256,7 @@ pub async fn get_block_range(
             Err(_) => continue,   // 跳过错误的区块
         }
     }
-    
+
     Json(ApiResponse::success(blocks))
 }
 
@@ -276,63 +275,72 @@ pub async fn send_transaction(
     State(state): State<ApiState>,
     Json(req): Json<SendTransactionRequest>,
 ) -> Json<ApiResponse<TransactionResponse>> {
-    use toki_core::{Transaction, Input, Output, RingSignature, Hash};
     use toki_consensus::TransactionPool;
-    
+    use toki_core::{Hash, Input, Output, RingSignature, Transaction};
+
     // 验证交易数据
     if req.inputs.is_empty() {
-        return Json(ApiResponse::error("Transaction must have at least one input"));
+        return Json(ApiResponse::error(
+            "Transaction must have at least one input",
+        ));
     }
-    
+
     if req.outputs.is_empty() {
-        return Json(ApiResponse::error("Transaction must have at least one output"));
+        return Json(ApiResponse::error(
+            "Transaction must have at least one output",
+        ));
     }
-    
+
     // 创建交易输入
-    let inputs: Vec<Input> = req.inputs.iter().map(|input| {
-        Input::new(
-            Hash::from_hex(&input.prev_tx_hash).unwrap_or(Hash::ZERO),
-            input.output_index,
-        )
-    }).collect();
-    
+    let inputs: Vec<Input> = req
+        .inputs
+        .iter()
+        .map(|input| {
+            Input::new(
+                Hash::from_hex(&input.prev_tx_hash).unwrap_or(Hash::ZERO),
+                input.output_index,
+            )
+        })
+        .collect();
+
     // 创建交易输出
-    let outputs: Vec<Output> = req.outputs.iter().map(|output| {
-        match toki_core::Address::from_base58(&output.address) {
-            Ok(addr) => Output::new(addr, output.amount),
-            Err(_) => Output::new(toki_core::Address::default(), 0),
-        }
-    }).collect();
-    
+    let outputs: Vec<Output> = req
+        .outputs
+        .iter()
+        .map(
+            |output| match toki_core::Address::from_base58(&output.address) {
+                Ok(addr) => Output::new(addr, output.amount),
+                Err(_) => Output::new(toki_core::Address::default(), 0),
+            },
+        )
+        .collect();
+
     // 创建环签名（简化版）
     let ring_sig = RingSignature::new(
-        vec![vec![0u8; 32]],  // 环
-        vec![0u8; 64],        // 签名
-        Hash::ZERO,           // 密钥镜像
+        vec![vec![0u8; 32]], // 环
+        vec![0u8; 64],       // 签名
+        Hash::ZERO,          // 密钥镜像
     );
-    
+
     // 创建交易
-    let tx = Transaction::new(
-        inputs,
-        outputs,
-        ring_sig,
-        req.fee,
-    );
-    
+    let tx = Transaction::new(inputs, outputs, ring_sig, req.fee);
+
     // 计算交易哈希（使用序列化）
     let tx_data = bincode::serialize(&tx).unwrap_or_default();
     let tx_hash = toki_core::Hash::from_data(&tx_data);
-    
+
     // 添加到交易池
     // 注意：这里需要通过状态访问交易池
     // 当前简化实现：仅记录日志
-    
-    info!("交易已提交: hash={}, inputs={}, outputs={}, fee={}", 
-          tx_hash.to_hex(), 
-          tx.inputs.len(), 
-          tx.outputs.len(), 
-          req.fee);
-    
+
+    info!(
+        "交易已提交: hash={}, inputs={}, outputs={}, fee={}",
+        tx_hash.to_hex(),
+        tx.inputs.len(),
+        tx.outputs.len(),
+        req.fee
+    );
+
     Json(ApiResponse::success(TransactionResponse {
         hash: tx_hash.to_hex(),
         height: 0,
@@ -349,7 +357,12 @@ pub async fn get_account(
     // 解析地址
     let addr = match toki_core::Address::from_base58(&address) {
         Ok(a) => a,
-        Err(_) => return Json(ApiResponse::error(&format!("Invalid address format: {}", address))),
+        Err(_) => {
+            return Json(ApiResponse::error(&format!(
+                "Invalid address format: {}",
+                address
+            )))
+        }
     };
 
     match state.account_store.get_account(&addr) {
@@ -359,7 +372,10 @@ pub async fn get_account(
             locked: account.locked_balance,
             account_type: format!("{:?}", account.account_type),
         })),
-        Ok(None) => Json(ApiResponse::error(&format!("Account {} not found", address))),
+        Ok(None) => Json(ApiResponse::error(&format!(
+            "Account {} not found",
+            address
+        ))),
         Err(e) => Json(ApiResponse::error(&format!("Failed to get account: {}", e))),
     }
 }
@@ -372,12 +388,20 @@ pub async fn get_balance(
     // 解析地址
     let addr = match toki_core::Address::from_base58(&address) {
         Ok(a) => a,
-        Err(_) => return Json(ApiResponse::error(&format!("Invalid address format: {}", address))),
+        Err(_) => {
+            return Json(ApiResponse::error(&format!(
+                "Invalid address format: {}",
+                address
+            )))
+        }
     };
-    
+
     match state.account_store.get_account(&addr) {
         Ok(Some(account)) => Json(ApiResponse::success(account.balance)),
-        Ok(None) => Json(ApiResponse::error(&format!("Account {} not found", address))),
+        Ok(None) => Json(ApiResponse::error(&format!(
+            "Account {} not found",
+            address
+        ))),
         Err(e) => Json(ApiResponse::error(&format!("Failed to get account: {}", e))),
     }
 }
@@ -391,7 +415,7 @@ pub async fn get_consensus_status(
         Ok(Some(block)) => block.height(),
         _ => 0,
     };
-    
+
     Json(ApiResponse::success(ConsensusResponse {
         height,
         difficulty: 1_000_000, // TODO: 从共识模块获取实际难度
@@ -411,9 +435,7 @@ pub async fn get_proposals() -> Json<ApiResponse<Vec<ProposalResponse>>> {
 }
 
 /// 提交投票
-pub async fn submit_vote(
-    Json(_req): Json<VoteRequest>,
-) -> Json<ApiResponse<String>> {
+pub async fn submit_vote(Json(_req): Json<VoteRequest>) -> Json<ApiResponse<String>> {
     Json(ApiResponse::success("Vote submitted".to_string()))
 }
 
@@ -450,26 +472,26 @@ pub struct FeeAnnouncementResponse {
 }
 
 /// 获取收费公告
-/// 
+///
 /// 返回收费公告信息（收费前15天）
 pub async fn get_fee_announcement(
     State(state): State<ApiState>,
 ) -> Json<ApiResponse<Option<FeeAnnouncementResponse>>> {
     use std::time::{SystemTime, UNIX_EPOCH};
     use toki_core::Transaction;
-    
+
     // 获取创世时间
     let genesis_time = match state.block_store.get_genesis_timestamp() {
         Ok(Some(t)) => t,
         _ => return Json(ApiResponse::success(None)),
     };
-    
+
     // 获取当前时间
     let current_time = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap()
         .as_secs();
-    
+
     // 检查是否需要公告
     match Transaction::check_fee_announcement(genesis_time, current_time) {
         Some(announcement) => Json(ApiResponse::success(Some(FeeAnnouncementResponse {
@@ -477,7 +499,10 @@ pub async fn get_fee_announcement(
             days_remaining: announcement.days_remaining,
             fee_rate: announcement.fee_rate,
             start_time: announcement.start_time,
-            message: format!("交易服务费将在 {} 天后开始收取", announcement.days_remaining),
+            message: format!(
+                "交易服务费将在 {} 天后开始收取",
+                announcement.days_remaining
+            ),
         }))),
         None => Json(ApiResponse::success(None)),
     }

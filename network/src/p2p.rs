@@ -2,22 +2,23 @@
 //!
 //! 使用 libp2p 实现节点通信、区块和交易广播
 
+use bincode;
 use libp2p::{
-    identity,
-    swarm::{Swarm, SwarmEvent},
-    PeerId, Multiaddr,
-    gossipsub::{self, Behaviour as Gossipsub, IdentTopic, MessageAuthenticity, Config as GossipsubConfig},
+    core::upgrade::Version,
+    gossipsub::{
+        self, Behaviour as Gossipsub, Config as GossipsubConfig, IdentTopic, MessageAuthenticity,
+    },
+    identity, noise,
     ping::{Behaviour as Ping, Config as PingConfig},
+    swarm::{Swarm, SwarmEvent},
     tcp::Config as TcpConfig,
-    noise, yamux,
-    Transport, core::upgrade::Version,
+    yamux, Multiaddr, PeerId, Transport,
 };
+use serde::{de::DeserializeOwned, Serialize};
 use std::error::Error;
 use std::time::Duration;
-use tracing::{info, warn, debug};
-use serde::{Serialize, de::DeserializeOwned};
-use bincode;
 use tokio::sync::mpsc;
+use tracing::{debug, info, warn};
 
 /// P2P 网络配置
 #[derive(Clone, Debug)]
@@ -98,7 +99,7 @@ impl P2PNode {
         }
 
         info!("启动 P2P 网络: {}", self.config.listen_addr);
-        
+
         // 连接到种子节点
         for peer in &self.config.bootstrap_peers {
             info!("连接到种子节点: {}", peer);
@@ -140,7 +141,11 @@ impl P2PNode {
     }
 
     /// 广播消息
-    pub fn broadcast<T: Serialize>(&mut self, topic: &str, message: &T) -> Result<(), Box<dyn Error>> {
+    pub fn broadcast<T: Serialize>(
+        &mut self,
+        topic: &str,
+        message: &T,
+    ) -> Result<(), Box<dyn Error>> {
         if !self.started {
             debug!("P2P 网络未启动，跳过广播");
             return Ok(());
@@ -148,7 +153,7 @@ impl P2PNode {
 
         let data = bincode::serialize(message)?;
         debug!("广播消息到主题 {}: {} 字节", topic, data.len());
-        
+
         // 通过通道发送
         let msg = NetworkMessage::Block(data);
         let _ = self.msg_sender.send(msg);
@@ -168,7 +173,10 @@ impl P2PNode {
     }
 
     /// 广播交易
-    pub fn broadcast_transaction(&mut self, tx: &toki_core::Transaction) -> Result<(), Box<dyn Error>> {
+    pub fn broadcast_transaction(
+        &mut self,
+        tx: &toki_core::Transaction,
+    ) -> Result<(), Box<dyn Error>> {
         if !self.started {
             debug!("P2P 网络未启动，跳过交易广播");
             return Ok(());
@@ -185,8 +193,11 @@ impl P2PNode {
         }
 
         info!("请求区块同步: start={}, count={}", start_height, count);
-        
-        let msg = NetworkMessage::SyncRequest { start_height, count };
+
+        let msg = NetworkMessage::SyncRequest {
+            start_height,
+            count,
+        };
         let _ = self.msg_sender.send(msg);
 
         Ok(())

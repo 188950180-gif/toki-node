@@ -1,12 +1,12 @@
 //! 分叉处理模块
-//! 
+//!
 //! 实现主链选择、分叉检测、状态回滚
 
+use anyhow::Result;
+use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, VecDeque};
 use std::sync::Arc;
-use serde::{Deserialize, Serialize};
-use anyhow::Result;
-use tracing::{info, warn, debug};
+use tracing::{debug, info, warn};
 
 use toki_core::{Block, Hash};
 
@@ -100,12 +100,12 @@ impl ForkManager {
     pub fn process_block(&mut self, block: &Block) -> Result<ForkAction> {
         let _block_hash = block.hash();
         let block_height = block.header.height;
-        
+
         // 简化处理逻辑
         if block_height == 0 {
             return Ok(ForkAction::ExtendMainChain);
         }
-        
+
         Ok(ForkAction::ExtendMainChain)
     }
 
@@ -154,7 +154,7 @@ mod tests {
         let action = ForkAction::ExtendMainChain;
         assert_eq!(action, ForkAction::ExtendMainChain);
     }
-    
+
     #[test]
     fn test_fork_manager() {
         let manager = ForkManager::new();

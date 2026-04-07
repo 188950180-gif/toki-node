@@ -51,7 +51,7 @@ async fn handle_socket(mut socket: WebSocket) {
                             }
                             _ => WsMessage::Pong,
                         };
-                        
+
                         let json = serde_json::to_string(&response).unwrap();
                         if socket.send(Message::Text(json)).await.is_err() {
                             break;

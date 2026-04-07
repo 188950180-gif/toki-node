@@ -3,12 +3,12 @@
 use crate::config::NodeConfig;
 use anyhow::Result;
 use std::sync::Arc;
-use tokio::signal;
-use toki_core::Block;
-use toki_storage::{Database, BlockStore, AccountStore};
+use toki_api::{ApiConfig, ApiServer, ApiState};
 use toki_consensus::{Miner, MiningConfig, TransactionPool, TxPoolConfig};
-use toki_api::{ApiServer, ApiConfig, ApiState};
-use toki_network::{P2PNode, P2PConfig};
+use toki_core::Block;
+use toki_network::{P2PConfig, P2PNode};
+use toki_storage::{AccountStore, BlockStore, Database};
+use tokio::signal;
 use tracing::info;
 
 /// 节点

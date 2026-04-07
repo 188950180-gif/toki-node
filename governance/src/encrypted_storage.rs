@@ -3,14 +3,14 @@
 //! 实现安全的密钥信息存储
 //! 提供完整性验证和访问控制
 
-use std::sync::Arc;
+use anyhow::Result;
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
-use anyhow::Result;
-use tracing::{info, warn, error, debug};
+use std::sync::Arc;
+use tracing::{debug, error, info, warn};
 
-use toki_crypto as crypto;
 use super::key_rotation::EncryptedKeyInfo;
+use toki_crypto as crypto;
 
 /// 存储配置
 #[derive(Clone, Debug)]
@@ -82,42 +82,42 @@ impl EncryptedStorage {
     /// 存储密钥信息
     pub fn store_key_info(&self, key_info: EncryptedKeyInfo) -> Result<()> {
         self.update_access();
-        
+
         // 序列化
         let data = bincode::serialize(&key_info)?;
-        
+
         // 加密
         let encrypted = self.encrypt_data(&data)?;
-        
+
         // 添加完整性验证
         let with_integrity = self.add_integrity_check(&encrypted)?;
-        
+
         // 模拟存储（实际应该写入文件）
         debug!("密钥信息已加密存储");
-        
+
         // 更新内存存储
         *self.key_info.write() = Some(key_info);
-        
+
         Ok(())
     }
 
     /// 读取密钥信息
     pub fn load_key_info(&self) -> Result<EncryptedKeyInfo> {
         self.update_access();
-        
+
         // 检查超时
         if self.is_access_timeout() {
             warn!("访问超时");
             return Err(anyhow::anyhow!("访问超时"));
         }
-        
+
         // 检查完整性
         if self.config.enable_integrity_check && !self.verify_integrity() {
             warn!("完整性验证失败");
             self.mark_as_corrupted();
             return Err(anyhow::anyhow!("完整性验证失败"));
         }
-        
+
         // 从内存读取
         let key_info = self.key_info.read();
         match key_info.as_ref() {
@@ -143,7 +143,7 @@ impl EncryptedStorage {
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
             .as_secs();
-        
+
         (now - state.last_access_time) > self.config.access_timeout_secs
     }
 
@@ -158,7 +158,8 @@ impl EncryptedStorage {
         // 检查密钥信息
         let key_info = self.key_info.read();
         if let Some(ref info) = *key_info {
-            let current_hash = self.create_verification_hash(&info.encrypted_phone, &info.encrypted_email);
+            let current_hash =
+                self.create_verification_hash(&info.encrypted_phone, &info.encrypted_email);
             current_hash == info.verification_hash
         } else {
             false
@@ -176,16 +177,16 @@ impl EncryptedStorage {
     /// 加密数据
     fn encrypt_data(&self, data: &[u8]) -> Result<Vec<u8>> {
         let nonce = crypto::random::random_bytes(12);
-        
+
         // 简化加密：XOR（实际应该使用 AES-GCM）
         let mut encrypted = Vec::with_capacity(nonce.len() + data.len());
         encrypted.extend_from_slice(&nonce);
-        
+
         for (i, &byte) in data.iter().enumerate() {
             let key_byte = self.encryption_key[i % self.encryption_key.len()];
             encrypted.push(byte ^ key_byte);
         }
-        
+
         Ok(encrypted)
     }
 
@@ -197,13 +198,13 @@ impl EncryptedStorage {
 
         let _nonce = &encrypted[..12];
         let ciphertext = &encrypted[12..];
-        
+
         let mut decrypted = Vec::with_capacity(ciphertext.len());
         for (i, &byte) in ciphertext.iter().enumerate() {
             let key_byte = self.encryption_key[i % self.encryption_key.len()];
             decrypted.push(byte ^ key_byte);
         }
-        
+
         Ok(decrypted)
     }
 

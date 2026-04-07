@@ -1,11 +1,11 @@
 //! 自动执行引擎
-//! 
+//!
 //! 条件触发自动执行系统
 
-use std::collections::HashMap;
-use serde::{Deserialize, Serialize};
-use async_trait::async_trait;
 use anyhow::Result;
+use async_trait::async_trait;
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use tracing::info;
 
 use toki_core::Address;
@@ -21,10 +21,7 @@ pub enum Condition {
     /// 时间戳到达
     Timestamp(u64),
     /// 账户余额超过阈值
-    BalanceExceeds {
-        address: Address,
-        threshold: u64,
-    },
+    BalanceExceeds { address: Address, threshold: u64 },
     /// 交易池大小超过
     TxPoolExceeds(u64),
     /// 网络连接数低于
@@ -47,15 +44,9 @@ pub enum Action {
         data: Vec<u8>,
     },
     /// 调整系统参数
-    AdjustParam {
-        key: String,
-        value: String,
-    },
+    AdjustParam { key: String, value: String },
     /// 触发治理提案
-    TriggerProposal {
-        title: String,
-        content: String,
-    },
+    TriggerProposal { title: String, content: String },
     /// 执行平权削减
     ExecuteEqualization,
     /// 执行基础派发
@@ -65,10 +56,7 @@ pub enum Action {
     /// 压缩数据库
     CompactDatabase,
     /// 发送告警
-    SendAlert {
-        level: AlertLevel,
-        message: String,
-    },
+    SendAlert { level: AlertLevel, message: String },
     /// 暂停挖矿
     PauseMining,
     /// 恢复挖矿
@@ -149,15 +137,15 @@ impl AutoExecutionRule {
         if !self.enabled {
             return false;
         }
-        
+
         if self.max_executions > 0 && self.execution_count >= self.max_executions {
             return false;
         }
-        
+
         if current_time < self.last_execution + self.cooldown {
             return false;
         }
-        
+
         true
     }
 }
@@ -288,24 +276,28 @@ impl AutoExecutionEngine {
     }
 
     /// 检查并执行规则
-    pub async fn check_and_execute(&mut self, state: &BlockchainState) -> Result<Vec<ExecutionRecord>> {
+    pub async fn check_and_execute(
+        &mut self,
+        state: &BlockchainState,
+    ) -> Result<Vec<ExecutionRecord>> {
         let mut executed = Vec::new();
-        
+
         // 收集需要执行的规则 ID
         let mut to_execute: Vec<RuleId> = Vec::new();
         for (id, rule) in &self.rules {
-            if rule.can_execute(state.timestamp) && self.evaluate_condition(&rule.condition, state) {
+            if rule.can_execute(state.timestamp) && self.evaluate_condition(&rule.condition, state)
+            {
                 to_execute.push(*id);
             }
         }
-        
+
         // 按优先级排序
         to_execute.sort_by(|a, b| {
             let pa = self.rules.get(a).map(|r| r.priority).unwrap_or(0);
             let pb = self.rules.get(b).map(|r| r.priority).unwrap_or(0);
             pb.cmp(&pa)
         });
-        
+
         // 执行规则
         for id in to_execute {
             if let Some(rule) = self.rules.get_mut(&id) {
@@ -315,10 +307,10 @@ impl AutoExecutionEngine {
                     info!("规则 {} 触发，但无执行器", rule.name);
                     true
                 };
-                
+
                 rule.execution_count += 1;
                 rule.last_execution = state.timestamp;
-                
+
                 let record = ExecutionRecord {
                     rule_id: rule.id,
                     rule_name: rule.name.clone(),
@@ -326,13 +318,13 @@ impl AutoExecutionEngine {
                     action: rule.action.clone(),
                     success,
                 };
-                
+
                 info!("执行规则: {} -> {:?}", rule.name, rule.action);
                 executed.push(record.clone());
                 self.execution_history.push(record);
             }
         }
-        
+
         Ok(executed)
     }
 
@@ -365,7 +357,7 @@ mod tests {
             Condition::BlockHeight(100),
             Action::ClearCache,
         );
-        
+
         assert_eq!(rule.id, 1);
         assert_eq!(rule.name, "test_rule");
         assert!(rule.enabled);
@@ -373,24 +365,18 @@ mod tests {
 
     #[test]
     fn test_rule_can_execute() {
-        let rule = AutoExecutionRule::new(
-            1,
-            "test",
-            Condition::BlockHeight(100),
-            Action::ClearCache,
-        ).with_cooldown(10);
-        
+        let rule =
+            AutoExecutionRule::new(1, "test", Condition::BlockHeight(100), Action::ClearCache)
+                .with_cooldown(10);
+
         // 应该可以执行
         assert!(rule.can_execute(100));
-        
+
         // 冷却期内不能执行
-        let rule = AutoExecutionRule::new(
-            1,
-            "test",
-            Condition::BlockHeight(100),
-            Action::ClearCache,
-        ).with_cooldown(10);
-        
+        let rule =
+            AutoExecutionRule::new(1, "test", Condition::BlockHeight(100), Action::ClearCache)
+                .with_cooldown(10);
+
         let mut rule = rule;
         rule.last_execution = 100;
         assert!(!rule.can_execute(105)); // 冷却期内
@@ -400,7 +386,7 @@ mod tests {
     #[test]
     fn test_evaluate_condition() {
         let engine = AutoExecutionEngine::new();
-        
+
         let state = BlockchainState {
             block_height: 150,
             timestamp: 1000,
@@ -410,15 +396,15 @@ mod tests {
             cpu_usage: 0.5,
             balances: HashMap::new(),
         };
-        
+
         // 测试区块高度条件
         assert!(engine.evaluate_condition(&Condition::BlockHeight(100), &state));
         assert!(!engine.evaluate_condition(&Condition::BlockHeight(200), &state));
-        
+
         // 测试交易池条件
         assert!(engine.evaluate_condition(&Condition::TxPoolExceeds(400), &state));
         assert!(!engine.evaluate_condition(&Condition::TxPoolExceeds(600), &state));
-        
+
         // 测试节点数条件
         assert!(engine.evaluate_condition(&Condition::PeerCountBelow(15), &state));
         assert!(!engine.evaluate_condition(&Condition::PeerCountBelow(5), &state));
@@ -427,14 +413,10 @@ mod tests {
     #[test]
     fn test_add_rule() {
         let mut engine = AutoExecutionEngine::new();
-        
-        let rule = AutoExecutionRule::new(
-            0,
-            "test",
-            Condition::BlockHeight(100),
-            Action::ClearCache,
-        );
-        
+
+        let rule =
+            AutoExecutionRule::new(0, "test", Condition::BlockHeight(100), Action::ClearCache);
+
         let id = engine.add_rule(rule);
         assert_eq!(id, 1);
         assert_eq!(engine.rules.len(), 1);

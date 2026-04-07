@@ -2,16 +2,16 @@
 //!
 //! 本模块提供基于 RocksDB 的持久化存储。
 
-pub mod database;
-pub mod block_store;
 pub mod account_store;
-pub mod transaction_store;
 pub mod backup;
+pub mod block_store;
+pub mod database;
 pub mod error;
+pub mod transaction_store;
 
-pub use database::*;
-pub use block_store::*;
 pub use account_store::*;
-pub use transaction_store::*;
 pub use backup::*;
+pub use block_store::*;
+pub use database::*;
 pub use error::*;
+pub use transaction_store::*;

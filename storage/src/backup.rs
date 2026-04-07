@@ -24,10 +24,7 @@ impl BackupManager {
     }
 
     /// 创建备份
-    pub fn create_backup<P: AsRef<Path>>(
-        &self,
-        db_path: P,
-    ) -> Result<PathBuf, StorageError> {
+    pub fn create_backup<P: AsRef<Path>>(&self, db_path: P) -> Result<PathBuf, StorageError> {
         let timestamp = Local::now().format("%Y%m%d_%H%M%S");
         let backup_name = format!("backup_{}", timestamp);
         let backup_path = self.backup_dir.join(&backup_name);

@@ -1,5 +1,5 @@
 //! 物资价值指数计算模块
-//! 
+//!
 //! 计算 theta 系数，实现 toki 与物资的锚定
 
 use chrono::{DateTime, Utc};
@@ -47,11 +47,11 @@ impl ThetaCalculator {
     /// 计算 theta 系数
     pub fn calculate_theta(&self, data: &MaterialValueData) -> f64 {
         let material_value = self.calculate_material_value(data);
-        
+
         if material_value == 0 {
             return 1.0;
         }
-        
+
         // theta = toki 总量 / 物资价值
         self.total_supply as f64 / material_value as f64
     }
@@ -60,10 +60,10 @@ impl ThetaCalculator {
     pub fn calculate_adjustment(&self, data: &MaterialValueData) -> AdjustmentResult {
         let material_value = self.calculate_material_value(data);
         let theta = self.calculate_theta(data);
-        
+
         // 计算当前 toki 价值
         let current_value = (self.total_supply as f64 / theta) as u64;
-        
+
         // 判断是否需要调节
         let adjustment_type = if current_value > material_value {
             AdjustmentType::Deflation
@@ -72,13 +72,13 @@ impl ThetaCalculator {
         } else {
             AdjustmentType::None
         };
-        
+
         let adjustment_amount = if current_value > material_value {
             current_value - material_value
         } else {
             material_value - current_value
         };
-        
+
         AdjustmentResult {
             theta,
             material_value,
@@ -102,11 +102,9 @@ impl ThetaCalculator {
         if self.history.is_empty() {
             return 1.0;
         }
-        
-        let sum: f64 = self.history.iter()
-            .map(|d| self.calculate_theta(d))
-            .sum();
-        
+
+        let sum: f64 = self.history.iter().map(|d| self.calculate_theta(d)).sum();
+
         sum / self.history.len() as f64
     }
 }
@@ -156,7 +154,7 @@ mod tests {
             global_population: 8_000_000_000,
             timestamp: Utc::now(),
         };
-        
+
         let value = calc.calculate_material_value(&data);
         assert_eq!(value, 100_000_000_000_000);
     }
@@ -170,7 +168,7 @@ mod tests {
             global_population: 8_144_000_000,
             timestamp: Utc::now(),
         };
-        
+
         let theta = calc.calculate_theta(&data);
         // theta 应该接近 1.0
         assert!(theta > 0.9 && theta < 1.1);
@@ -185,7 +183,7 @@ mod tests {
             global_population: 8_000_000_000,
             timestamp: Utc::now(),
         };
-        
+
         let result = calc.calculate_adjustment(&data);
         assert!(result.theta > 0.0);
     }

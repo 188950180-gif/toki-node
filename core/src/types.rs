@@ -100,8 +100,7 @@ impl Address {
 
     /// 从 Base58 字符串解析
     pub fn from_base58(s: &str) -> Result<Self, TypesError> {
-        let bytes = base58::FromBase58::from_base58(s)
-            .map_err(|_| TypesError::InvalidBase58)?;
+        let bytes = base58::FromBase58::from_base58(s).map_err(|_| TypesError::InvalidBase58)?;
         if bytes.len() != 32 {
             return Err(TypesError::InvalidAddressLength);
         }

@@ -99,11 +99,7 @@ impl Account {
     }
 
     /// 创建个人账户
-    pub fn new_personal(
-        address: Address,
-        device_fingerprint: Hash,
-        bio_hash: Hash,
-    ) -> Self {
+    pub fn new_personal(address: Address, device_fingerprint: Hash, bio_hash: Hash) -> Self {
         let mut account = Self::new(address, AccountType::Personal);
         account.device_fingerprint = Some(device_fingerprint);
         account.bio_hash = Some(bio_hash);

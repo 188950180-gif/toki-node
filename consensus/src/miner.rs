@@ -2,16 +2,19 @@
 //!
 //! 实际的工作量证明计算和区块广播集成
 
-use std::sync::{Arc, atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering}};
+use anyhow::Result;
+use chrono::{DateTime, Utc};
+use parking_lot::Mutex;
+use std::sync::{
+    atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering},
+    Arc,
+};
 use std::thread;
 use std::time::{Duration, Instant};
-use parking_lot::Mutex;
-use anyhow::Result;
-use tracing::{info, warn, debug};
-use chrono::{DateTime, Utc};
+use tracing::{debug, info, warn};
 
-use toki_core::{Block, Transaction, Hash, Address, BlockHeader, TOKI_BASE_UNIT};
 use crate::difficulty::DifficultyAdjuster;
+use toki_core::{Address, Block, BlockHeader, Hash, Transaction, TOKI_BASE_UNIT};
 
 /// 挖矿配置
 #[derive(Clone, Debug)]
@@ -134,7 +137,9 @@ impl Miner {
         }
 
         let thread_count = self.config.actual_thread_count();
-        self.stats.thread_count.store(thread_count, Ordering::SeqCst);
+        self.stats
+            .thread_count
+            .store(thread_count, Ordering::SeqCst);
 
         info!("Starting miner with {} threads", thread_count);
 
@@ -151,9 +156,7 @@ impl Miner {
 
                 while running.load(Ordering::SeqCst) {
                     // 获取当前难度
-                    let difficulty = {
-                        difficulty_adjuster.lock().get_current_difficulty()
-                    };
+                    let difficulty = { difficulty_adjuster.lock().get_current_difficulty() };
 
                     // 创建挖矿任务
                     let task = MiningTask {

@@ -5,11 +5,11 @@
 //! - 低保发放
 //! - 资格审核
 
+use anyhow::Result;
+use parking_lot::RwLock;
 use std::collections::HashMap;
 use std::sync::Arc;
-use parking_lot::RwLock;
-use anyhow::Result;
-use tracing::{info, warn, debug};
+use tracing::{debug, info, warn};
 
 use toki_core::{Address, TOKI_BASE_UNIT};
 
@@ -93,7 +93,7 @@ impl WelfareSystem {
         info!("创建低保系统");
         info!("低保金额: {}", config.welfare_amount);
         info!("发放周期: {} 区块", config.distribution_interval);
-        
+
         WelfareSystem {
             config,
             welfare_pool: Arc::new(RwLock::new(0)),
@@ -114,45 +114,50 @@ impl WelfareSystem {
     /// 申请低保
     pub fn apply_for_welfare(&self, address: Address, reason: String) -> Result<()> {
         let now = chrono::Utc::now().timestamp();
-        
+
         let application = WelfareApplication {
             address: address.clone(),
             applied_at: now,
             reason,
             status: ApplicationStatus::Pending,
         };
-        
+
         let mut applications = self.applications.write();
         applications.insert(address.clone(), application);
-        
+
         info!("收到低保申请: {}", address);
         Ok(())
     }
 
     /// 审核申请
-    pub fn review_application(&self, address: &Address, approved: bool, reason: String) -> Result<()> {
+    pub fn review_application(
+        &self,
+        address: &Address,
+        approved: bool,
+        reason: String,
+    ) -> Result<()> {
         let mut applications = self.applications.write();
-        
+
         if let Some(app) = applications.get_mut(address) {
             if approved {
                 app.status = ApplicationStatus::Approved;
-                
+
                 // 添加到资格列表
                 let mut eligible = self.eligible_addresses.write();
                 eligible.insert(address.clone(), true);
-                
+
                 info!("低保申请已批准: {} (理由: {})", address, reason);
             } else {
                 app.status = ApplicationStatus::Rejected;
-                
+
                 // 从资格列表移除
                 let mut eligible = self.eligible_addresses.write();
                 eligible.remove(address);
-                
+
                 info!("低保申请已拒绝: {} (理由: {})", address, reason);
             }
         }
-        
+
         Ok(())
     }
 
@@ -160,42 +165,45 @@ impl WelfareSystem {
     pub fn distribute_welfare(&self, block_height: u64) -> Result<u64> {
         let eligible = self.eligible_addresses.read();
         let mut pool = self.welfare_pool.write();
-        
+
         let eligible_count = eligible.len();
         if eligible_count == 0 {
             return Ok(0);
         }
-        
+
         let amount_per_address = self.config.welfare_amount;
         let total_required = amount_per_address * eligible_count as u64;
-        
+
         if *pool < total_required {
             warn!("低保资金不足: 需要 {}, 可用 {}", total_required, *pool);
             return Ok(0);
         }
-        
+
         let now = chrono::Utc::now().timestamp();
         let mut distributed = 0u64;
-        
+
         for (address, _) in eligible.iter() {
             if *pool >= amount_per_address {
                 *pool -= amount_per_address;
                 distributed += amount_per_address;
-                
+
                 let record = DistributionRecord {
                     address: address.clone(),
                     amount: amount_per_address,
                     block_height,
                     timestamp: now,
                 };
-                
+
                 self.distribution_records.write().push(record);
-                
+
                 debug!("发放低保: {} -> {}", amount_per_address, address);
             }
         }
-        
-        info!("低保发放完成: {} 地址, 总计 {}", eligible_count, distributed);
+
+        info!(
+            "低保发放完成: {} 地址, 总计 {}",
+            eligible_count, distributed
+        );
         Ok(distributed)
     }
 
@@ -216,7 +224,11 @@ impl WelfareSystem {
 
     /// 检查资格
     pub fn is_eligible(&self, address: &Address) -> bool {
-        *self.eligible_addresses.read().get(address).unwrap_or(&false)
+        *self
+            .eligible_addresses
+            .read()
+            .get(address)
+            .unwrap_or(&false)
     }
 
     /// 获取发放记录
@@ -231,19 +243,19 @@ impl WelfareSystem {
         let applications = self.get_all_applications();
         let eligible_count = self.eligible_addresses.read().len();
         let records = self.get_distribution_records(1000);
-        
-        let pending_count = applications.iter()
+
+        let pending_count = applications
+            .iter()
             .filter(|a| a.status == ApplicationStatus::Pending)
             .count();
-        
-        let approved_count = applications.iter()
+
+        let approved_count = applications
+            .iter()
             .filter(|a| a.status == ApplicationStatus::Approved)
             .count();
-        
-        let total_distributed = records.iter()
-            .map(|r| r.amount)
-            .sum();
-        
+
+        let total_distributed = records.iter().map(|r| r.amount).sum();
+
         WelfareStats {
             pool_balance,
             application_count: applications.len(),
@@ -292,7 +304,7 @@ mod tests {
     fn test_add_funds() {
         let welfare = WelfareSystem::default();
         welfare.add_funds(1000 * TOKI_BASE_UNIT).unwrap();
-        
+
         assert_eq!(welfare.get_pool_balance(), 1000 * TOKI_BASE_UNIT);
     }
 
@@ -300,8 +312,10 @@ mod tests {
     fn test_apply_for_welfare() {
         let welfare = WelfareSystem::default();
         let address = Address::new([1u8; 32]);
-        
-        welfare.apply_for_welfare(address.clone(), "Need help".to_string()).unwrap();
+
+        welfare
+            .apply_for_welfare(address.clone(), "Need help".to_string())
+            .unwrap();
         assert_eq!(welfare.get_all_applications().len(), 1);
     }
 
@@ -309,10 +323,14 @@ mod tests {
     fn test_review_application() {
         let welfare = WelfareSystem::default();
         let address = Address::new([1u8; 32]);
-        
-        welfare.apply_for_welfare(address.clone(), "Need help".to_string()).unwrap();
-        welfare.review_application(&address, true, "Valid".to_string()).unwrap();
-        
+
+        welfare
+            .apply_for_welfare(address.clone(), "Need help".to_string())
+            .unwrap();
+        welfare
+            .review_application(&address, true, "Valid".to_string())
+            .unwrap();
+
         assert!(welfare.is_eligible(&address));
     }
 
@@ -320,11 +338,15 @@ mod tests {
     fn test_distribute_welfare() {
         let welfare = WelfareSystem::default();
         let address = Address::new([1u8; 32]);
-        
+
         welfare.add_funds(1000 * TOKI_BASE_UNIT).unwrap();
-        welfare.apply_for_welfare(address.clone(), "Need help".to_string()).unwrap();
-        welfare.review_application(&address, true, "Valid".to_string()).unwrap();
-        
+        welfare
+            .apply_for_welfare(address.clone(), "Need help".to_string())
+            .unwrap();
+        welfare
+            .review_application(&address, true, "Valid".to_string())
+            .unwrap();
+
         let distributed = welfare.distribute_welfare(100).unwrap();
         assert_eq!(distributed, 10 * TOKI_BASE_UNIT);
     }
@@ -333,7 +355,7 @@ mod tests {
     fn test_get_stats() {
         let welfare = WelfareSystem::default();
         let stats = welfare.get_stats();
-        
+
         assert_eq!(stats.pool_balance, 0);
         assert_eq!(stats.application_count, 0);
         assert_eq!(stats.eligible_count, 0);

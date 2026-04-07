@@ -1,5 +1,5 @@
 //! 平权削减模块
-//! 
+//!
 //! 检测并执行平权削减，防止财富过度集中
 
 use std::collections::HashMap;
@@ -90,18 +90,16 @@ impl EqualizationDetector {
 
         for threshold in &self.config.thresholds {
             let threshold_amount = threshold.balance_threshold * TOKI_BASE_UNIT;
-            
+
             // 统计超过阈值的账户数量
             let count = balance_stats.count_above_threshold(threshold_amount);
-            
+
             if count >= threshold.account_count_threshold as usize {
                 info!(
                     "触发平权: 余额>={} toki 的账户数 {} >= {}",
-                    threshold.balance_threshold,
-                    count,
-                    threshold.account_count_threshold
+                    threshold.balance_threshold, count, threshold.account_count_threshold
                 );
-                
+
                 return Some(EqualizationAction {
                     balance_threshold: threshold.balance_threshold,
                     affected_accounts: count,
@@ -148,7 +146,8 @@ impl BalanceStats {
 
     /// 统计超过阈值的账户数
     pub fn count_above_threshold(&self, threshold: u64) -> usize {
-        self.buckets.iter()
+        self.buckets
+            .iter()
             .filter(|(&bucket, _)| bucket >= threshold)
             .map(|(_, &count)| count)
             .sum()
@@ -190,11 +189,11 @@ mod tests {
     #[test]
     fn test_balance_stats() {
         let mut stats = BalanceStats::new();
-        
+
         stats.add_account(5_000_000 * TOKI_BASE_UNIT);
         stats.add_account(15_000_000 * TOKI_BASE_UNIT);
         stats.add_account(25_000_000 * TOKI_BASE_UNIT);
-        
+
         let count = stats.count_above_threshold(10_000_000 * TOKI_BASE_UNIT);
         assert_eq!(count, 2);
     }
@@ -204,7 +203,7 @@ mod tests {
         let detector = EqualizationDetector::default();
         let balance = 100_000_000 * TOKI_BASE_UNIT;
         let reduction = detector.calculate_reduction(balance, 0.2);
-        
+
         assert_eq!(reduction, 20_000_000 * TOKI_BASE_UNIT);
     }
 }

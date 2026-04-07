@@ -1,16 +1,19 @@
 //! 挖矿与网络广播集成
-//! 
+//!
 //! 实现挖矿成功后自动广播区块到网络
 
-use std::sync::{Arc, atomic::{AtomicBool, AtomicU64, Ordering}};
+use anyhow::Result;
+use serde::{Deserialize, Serialize};
+use std::sync::mpsc::{channel, Receiver, Sender};
+use std::sync::{
+    atomic::{AtomicBool, AtomicU64, Ordering},
+    Arc,
+};
 use std::thread;
 use std::time::{Duration, Instant};
-use std::sync::mpsc::{Sender, Receiver, channel};
-use serde::{Deserialize, Serialize};
-use anyhow::Result;
-use tracing::{info, warn, debug};
+use tracing::{debug, info, warn};
 
-use toki_core::{Block, Transaction, Hash};
+use toki_core::{Block, Hash, Transaction};
 
 /// 挖矿与广播事件
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -22,25 +25,13 @@ pub enum MiningBroadcastEvent {
         timestamp: u64,
     },
     /// 区块广播成功
-    BroadcastSuccess {
-        block_hash: Hash,
-        peer_count: usize,
-    },
+    BroadcastSuccess { block_hash: Hash, peer_count: usize },
     /// 区块广播失败
-    BroadcastFailed {
-        block_hash: Hash,
-        error: String,
-    },
+    BroadcastFailed { block_hash: Hash, error: String },
     /// 收到远程区块
-    RemoteBlockReceived {
-        block: Block,
-        from_peer: String,
-    },
+    RemoteBlockReceived { block: Block, from_peer: String },
     /// 挖矿状态变更
-    MiningStateChanged {
-        running: bool,
-        thread_count: usize,
-    },
+    MiningStateChanged { running: bool, thread_count: usize },
 }
 
 /// 挖矿广播配置
@@ -115,7 +106,7 @@ impl MiningBroadcastIntegration {
         } else {
             config.thread_count
         };
-        
+
         MiningBroadcastIntegration {
             config: MiningBroadcastConfig {
                 thread_count,
@@ -136,15 +127,17 @@ impl MiningBroadcastIntegration {
             warn!("挖矿广播集成器已在运行");
             return Ok(());
         }
-        
+
         info!("启动挖矿广播集成器，线程数: {}", self.config.thread_count);
-        
+
         // 发送状态变更事件
-        let _ = self.event_sender.send(MiningBroadcastEvent::MiningStateChanged {
-            running: true,
-            thread_count: self.config.thread_count,
-        });
-        
+        let _ = self
+            .event_sender
+            .send(MiningBroadcastEvent::MiningStateChanged {
+                running: true,
+                thread_count: self.config.thread_count,
+            });
+
         Ok(())
     }
 
@@ -152,19 +145,25 @@ impl MiningBroadcastIntegration {
     pub fn stop(&self) {
         self.running.store(false, Ordering::SeqCst);
         info!("停止挖矿广播集成器");
-        
-        let _ = self.event_sender.send(MiningBroadcastEvent::MiningStateChanged {
-            running: false,
-            thread_count: 0,
-        });
+
+        let _ = self
+            .event_sender
+            .send(MiningBroadcastEvent::MiningStateChanged {
+                running: false,
+                thread_count: 0,
+            });
     }
 
     /// 处理挖出的区块
     pub fn on_block_mined(&self, block: &Block, miner: &str) -> Result<()> {
         self.stats.blocks_mined.fetch_add(1, Ordering::SeqCst);
-        
-        info!("区块挖出: 高度={}, 哈希={}", block.header.height, block.hash());
-        
+
+        info!(
+            "区块挖出: 高度={}, 哈希={}",
+            block.header.height,
+            block.hash()
+        );
+
         // 发送挖矿事件
         let _ = self.event_sender.send(MiningBroadcastEvent::BlockMined {
             block: block.clone(),
@@ -174,12 +173,12 @@ impl MiningBroadcastIntegration {
                 .unwrap()
                 .as_secs(),
         });
-        
+
         // 自动广播
         if self.config.auto_broadcast {
             self.broadcast_block(block)?;
         }
-        
+
         Ok(())
     }
 
@@ -187,24 +186,28 @@ impl MiningBroadcastIntegration {
     pub fn broadcast_block(&self, block: &Block) -> Result<()> {
         let block_hash = block.hash();
         info!("广播区块: {}", block_hash);
-        
+
         // 模拟广播（实际实现需要连接 P2P 网络）
         let peer_count = self.simulate_broadcast(block)?;
-        
+
         if peer_count > 0 {
             self.stats.broadcast_success.fetch_add(1, Ordering::SeqCst);
-            let _ = self.event_sender.send(MiningBroadcastEvent::BroadcastSuccess {
-                block_hash,
-                peer_count,
-            });
+            let _ = self
+                .event_sender
+                .send(MiningBroadcastEvent::BroadcastSuccess {
+                    block_hash,
+                    peer_count,
+                });
         } else {
             self.stats.broadcast_failed.fetch_add(1, Ordering::SeqCst);
-            let _ = self.event_sender.send(MiningBroadcastEvent::BroadcastFailed {
-                block_hash,
-                error: "没有连接的节点".to_string(),
-            });
+            let _ = self
+                .event_sender
+                .send(MiningBroadcastEvent::BroadcastFailed {
+                    block_hash,
+                    error: "没有连接的节点".to_string(),
+                });
         }
-        
+
         Ok(())
     }
 
@@ -217,15 +220,22 @@ impl MiningBroadcastIntegration {
 
     /// 处理收到的远程区块
     pub fn on_remote_block_received(&self, block: &Block, from_peer: &str) -> Result<()> {
-        self.stats.remote_blocks_received.fetch_add(1, Ordering::SeqCst);
-        
-        debug!("收到远程区块: 高度={}, 来自={}", block.header.height, from_peer);
-        
-        let _ = self.event_sender.send(MiningBroadcastEvent::RemoteBlockReceived {
-            block: block.clone(),
-            from_peer: from_peer.to_string(),
-        });
-        
+        self.stats
+            .remote_blocks_received
+            .fetch_add(1, Ordering::SeqCst);
+
+        debug!(
+            "收到远程区块: 高度={}, 来自={}",
+            block.header.height, from_peer
+        );
+
+        let _ = self
+            .event_sender
+            .send(MiningBroadcastEvent::RemoteBlockReceived {
+                block: block.clone(),
+                from_peer: from_peer.to_string(),
+            });
+
         Ok(())
     }
 
@@ -262,7 +272,8 @@ impl MiningBroadcastIntegration {
 
     /// 更新难度
     pub fn update_difficulty(&self, new_difficulty: u64) {
-        self.current_difficulty.store(new_difficulty, Ordering::SeqCst);
+        self.current_difficulty
+            .store(new_difficulty, Ordering::SeqCst);
         info!("难度更新: {}", new_difficulty);
     }
 
@@ -290,7 +301,7 @@ mod tests {
     fn test_mining_broadcast_creation() {
         let config = MiningBroadcastConfig::default();
         let integration = MiningBroadcastIntegration::new(config);
-        
+
         assert!(!integration.is_running());
         assert!(integration.config.thread_count > 0);
     }
@@ -299,10 +310,10 @@ mod tests {
     fn test_mining_broadcast_start_stop() {
         let config = MiningBroadcastConfig::default();
         let integration = MiningBroadcastIntegration::new(config);
-        
+
         integration.start().unwrap();
         assert!(integration.is_running());
-        
+
         integration.stop();
         assert!(!integration.is_running());
     }
@@ -311,7 +322,7 @@ mod tests {
     fn test_stats() {
         let config = MiningBroadcastConfig::default();
         let integration = MiningBroadcastIntegration::new(config);
-        
+
         let stats = integration.stats();
         assert_eq!(stats.blocks_mined, 0);
         assert_eq!(stats.broadcast_success, 0);

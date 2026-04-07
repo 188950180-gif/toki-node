@@ -1,5 +1,5 @@
 //! 治理提案模块
-//! 
+//!
 //! 实现链上治理提案的创建、查询和管理
 
 use chrono::{DateTime, Utc};
@@ -23,14 +23,9 @@ pub enum ProposalType {
         description: String,
     },
     /// 公益执行
-    CharityExecution {
-        region: String,
-        amount: u64,
-    },
+    CharityExecution { region: String, amount: u64 },
     /// 开发者建议
-    DeveloperSuggestion {
-        content: String,
-    },
+    DeveloperSuggestion { content: String },
 }
 
 /// 提案状态
@@ -93,7 +88,7 @@ impl Proposal {
     ) -> Self {
         let now = Utc::now();
         let voting_end = now + chrono::Duration::days(voting_period_days as i64);
-        
+
         Proposal {
             id,
             proposal_type,
@@ -134,17 +129,17 @@ impl Proposal {
         if !self.can_vote() {
             return Err("提案不在投票期".to_string());
         }
-        
+
         if self.has_voted(&voter) {
             return Err("已经投过票".to_string());
         }
-        
+
         if support {
             self.votes_for += 1;
         } else {
             self.votes_against += 1;
         }
-        
+
         self.voters.push(voter);
         Ok(())
     }
@@ -154,25 +149,25 @@ impl Proposal {
         if self.status != ProposalStatus::Voting {
             return;
         }
-        
+
         let total_votes = self.votes_for + self.votes_against + self.votes_abstain;
-        
+
         // 检查参与率
         // TODO: 需要知道总账户数
         let participation_rate = 1.0; // 暂时假设满足
-        
+
         if participation_rate < participation_threshold {
             self.status = ProposalStatus::Rejected;
             return;
         }
-        
+
         // 检查通过率
         let pass_rate = if total_votes > 0 {
             self.votes_for as f64 / total_votes as f64
         } else {
             0.0
         };
-        
+
         if pass_rate >= pass_threshold {
             self.status = ProposalStatus::Passed;
         } else {
@@ -229,7 +224,7 @@ impl ProposalManager {
     ) -> u64 {
         let id = self.next_id;
         self.next_id += 1;
-        
+
         let proposal = Proposal::new(
             id,
             proposal_type,
@@ -238,10 +233,10 @@ impl ProposalManager {
             proposer,
             self.voting_period_days,
         );
-        
+
         self.proposals.push(proposal);
         info!("创建提案: {} - {}", id, title);
-        
+
         id
     }
 
@@ -252,7 +247,8 @@ impl ProposalManager {
 
     /// 获取活跃提案
     pub fn get_active_proposals(&self) -> Vec<&Proposal> {
-        self.proposals.iter()
+        self.proposals
+            .iter()
             .filter(|p| p.status == ProposalStatus::Voting || p.status == ProposalStatus::Pending)
             .collect()
     }
@@ -260,7 +256,7 @@ impl ProposalManager {
     /// 投票
     pub fn vote(&mut self, proposal_id: u64, voter: Address, support: bool) -> Result<(), String> {
         let proposal = self.proposals.iter_mut().find(|p| p.id == proposal_id);
-        
+
         match proposal {
             Some(p) => p.vote(voter, support),
             None => Err("提案不存在".to_string()),
@@ -302,7 +298,7 @@ mod tests {
             proposer,
             7,
         );
-        
+
         assert_eq!(proposal.id, 1);
         assert_eq!(proposal.status, ProposalStatus::Pending);
     }
@@ -311,7 +307,7 @@ mod tests {
     fn test_voting() {
         let mut manager = ProposalManager::default();
         let proposer = Address::new([1u8; 32]);
-        
+
         let id = manager.create_proposal(
             ProposalType::ParameterChange {
                 param_name: "test".to_string(),
@@ -322,11 +318,11 @@ mod tests {
             "测试描述".to_string(),
             proposer.clone(),
         );
-        
+
         // 开始投票
         let proposal = manager.proposals.iter_mut().find(|p| p.id == id).unwrap();
         proposal.start_voting();
-        
+
         // 投票
         let voter = Address::new([2u8; 32]);
         let result = manager.vote(id, voter, true);

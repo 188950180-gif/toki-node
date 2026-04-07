@@ -175,7 +175,7 @@ impl RingSignature {
         // 简化验证：检查签名长度
         // 在实际实现中，这里应该使用完整的环签名验证算法
         // 例如 MLSAG 或 CLSAG
-        
+
         // 模拟验证通过
         true
     }
@@ -245,22 +245,22 @@ impl Transaction {
     fn serialize_for_signing(&self) -> Vec<u8> {
         // 简化实现：序列化交易的关键部分
         let mut data = Vec::new();
-        
+
         // 序列化输入
         for input in &self.inputs {
             data.extend_from_slice(input.prev_tx_hash.as_bytes());
             data.extend_from_slice(&input.output_index.to_le_bytes());
         }
-        
+
         // 序列化输出
         for output in &self.outputs {
             data.extend_from_slice(&output.amount.to_le_bytes());
             data.extend_from_slice(&output.address.0);
         }
-        
+
         // 序列化费用
         data.extend_from_slice(&self.fee.to_le_bytes());
-        
+
         data
     }
 
@@ -330,50 +330,43 @@ impl Transaction {
     }
 
     /// 计算交易费用（带延迟）
-    /// 
+    ///
     /// # 参数
     /// - `amount`: 交易金额
     /// - `genesis_time`: 创世区块时间戳（秒）
     /// - `current_time`: 当前时间戳（秒）
-    /// 
+    ///
     /// # 返回
     /// - 180天内返回0（免费期）
     /// - 180天后返回正常交易费
-    pub fn calculate_fee_with_delay(
-        amount: u64,
-        genesis_time: u64,
-        current_time: u64,
-    ) -> u64 {
-        use crate::constants::{TRANSACTION_FEE_RATE, FEE_DELAY_DAYS};
-        
+    pub fn calculate_fee_with_delay(amount: u64, genesis_time: u64, current_time: u64) -> u64 {
+        use crate::constants::{FEE_DELAY_DAYS, TRANSACTION_FEE_RATE};
+
         let running_days = (current_time.saturating_sub(genesis_time)) / 86400;
-        
+
         if running_days < FEE_DELAY_DAYS {
-            return 0;  // 延迟期内免费
+            return 0; // 延迟期内免费
         }
-        
+
         // 正常收费
         ((amount as f64 * TRANSACTION_FEE_RATE) as u64).max(1)
     }
 
     /// 检查是否需要公告收费
-    /// 
+    ///
     /// # 参数
     /// - `genesis_time`: 创世区块时间戳（秒）
     /// - `current_time`: 当前时间戳（秒）
-    /// 
+    ///
     /// # 返回
     /// - 收费前15天返回公告信息
     /// - 其他时间返回None
-    pub fn check_fee_announcement(
-        genesis_time: u64,
-        current_time: u64,
-    ) -> Option<FeeAnnouncement> {
-        use crate::constants::{FEE_DELAY_DAYS, FEE_ANNOUNCEMENT_DAYS, TRANSACTION_FEE_RATE};
-        
+    pub fn check_fee_announcement(genesis_time: u64, current_time: u64) -> Option<FeeAnnouncement> {
+        use crate::constants::{FEE_ANNOUNCEMENT_DAYS, FEE_DELAY_DAYS, TRANSACTION_FEE_RATE};
+
         let running_days = (current_time.saturating_sub(genesis_time)) / 86400;
         let announcement_start = FEE_DELAY_DAYS.saturating_sub(FEE_ANNOUNCEMENT_DAYS);
-        
+
         if running_days >= announcement_start && running_days < FEE_DELAY_DAYS {
             let days_remaining = FEE_DELAY_DAYS - running_days;
             return Some(FeeAnnouncement {
@@ -383,7 +376,7 @@ impl Transaction {
                 start_time: genesis_time + FEE_DELAY_DAYS * 86400,
             });
         }
-        
+
         None
     }
 
@@ -491,12 +484,7 @@ mod tests {
             Hash::ZERO,
         );
 
-        let tx = Transaction::new(
-            vec![input],
-            vec![output],
-            ring_sig,
-            1000,
-        );
+        let tx = Transaction::new(vec![input], vec![output], ring_sig, 1000);
 
         // Transaction::new 不会自动计算 tx_hash，需要调用 finalize()
         // assert!(tx.tx_hash.is_some());

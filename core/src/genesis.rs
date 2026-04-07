@@ -1,5 +1,5 @@
 //! 创世区块配置
-//! 
+//!
 //! 定义 Toki 区块链的创世区块参数
 
 use crate::{constants::*, Address, Hash};
@@ -48,10 +48,14 @@ impl GenesisConfig {
             initial_difficulty: 1_000_000,
             distribution_pool_balance: (TOTAL_SUPPLY as f64 * DISTRIBUTION_POOL_RATIO) as u64,
             reserve_pool_balance: (TOTAL_SUPPLY as f64 * RESERVE_POOL_RATIO) as u64,
-            ai_aggregate_address: Address::from_base58("toki1ai0000000000000000000000000000000000000000000000000000000")
-                .unwrap_or(Address::ZERO),
-            developer_address: Address::from_base58("toki1dev00000000000000000000000000000000000000000000000000000")
-                .unwrap_or(Address::ZERO),
+            ai_aggregate_address: Address::from_base58(
+                "toki1ai0000000000000000000000000000000000000000000000000000000",
+            )
+            .unwrap_or(Address::ZERO),
+            developer_address: Address::from_base58(
+                "toki1dev00000000000000000000000000000000000000000000000000000",
+            )
+            .unwrap_or(Address::ZERO),
             initial_allocations: vec![],
         }
     }
@@ -83,13 +87,12 @@ impl GenesisConfig {
         }
 
         // 验证总分配不超过总量
-        let allocated: u64 = self.initial_allocations.iter()
-            .map(|a| a.balance)
-            .sum();
-        
-        let total_pools = self.distribution_pool_balance
+        let allocated: u64 = self.initial_allocations.iter().map(|a| a.balance).sum();
+
+        let total_pools = self
+            .distribution_pool_balance
             .saturating_add(self.reserve_pool_balance);
-        
+
         if allocated.saturating_add(total_pools) > TOTAL_SUPPLY {
             return Err("Total allocation exceeds total supply".to_string());
         }

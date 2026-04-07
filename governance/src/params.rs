@@ -60,13 +60,17 @@ impl ChainParams {
     pub fn get(&self, name: &str) -> Option<ParamType> {
         match name {
             "target_block_time" => Some(ParamType::U64(self.target_block_time)),
-            "difficulty_adjustment_interval" => Some(ParamType::U64(self.difficulty_adjustment_interval)),
+            "difficulty_adjustment_interval" => {
+                Some(ParamType::U64(self.difficulty_adjustment_interval))
+            }
             "min_tx_fee" => Some(ParamType::U64(self.min_tx_fee)),
             "tx_fee_rate" => Some(ParamType::F64(self.tx_fee_rate)),
             "equalization_rate" => Some(ParamType::F64(self.equalization_rate)),
             "voting_period_days" => Some(ParamType::U64(self.voting_period_days)),
             "vote_pass_threshold" => Some(ParamType::F64(self.vote_pass_threshold)),
-            "vote_participation_threshold" => Some(ParamType::F64(self.vote_participation_threshold)),
+            "vote_participation_threshold" => {
+                Some(ParamType::F64(self.vote_participation_threshold))
+            }
             "fiat_channel_countdown_days" => Some(ParamType::U64(self.fiat_channel_countdown_days)),
             "personal_balance_limit" => Some(ParamType::U64(self.personal_balance_limit)),
             _ => None,
@@ -199,11 +203,11 @@ mod tests {
     #[test]
     fn test_get_set_param() {
         let mut params = ChainParams::default();
-        
+
         // 获取参数
         let value = params.get("target_block_time");
         assert!(matches!(value, Some(ParamType::U64(10))));
-        
+
         // 设置参数
         let result = params.set("target_block_time", ParamType::U64(20));
         assert!(result.is_ok());
@@ -213,11 +217,11 @@ mod tests {
     #[test]
     fn test_invalid_param() {
         let mut params = ChainParams::default();
-        
+
         // 设置错误类型
         let result = params.set("target_block_time", ParamType::F64(1.0));
         assert!(result.is_err());
-        
+
         // 设置未知参数
         let result = params.set("unknown", ParamType::U64(1));
         assert!(result.is_err());

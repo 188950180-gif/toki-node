@@ -1,12 +1,12 @@
 //! Prometheus 监控模块
-//! 
+//!
 //! 实现运维监控指标导出
 
+use anyhow::Result;
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Instant;
-use std::collections::HashMap;
-use serde::{Deserialize, Serialize};
-use anyhow::Result;
 use tracing::info;
 
 /// 指标类型
@@ -75,48 +75,55 @@ impl PrometheusMetrics {
     /// 注册计数器
     pub fn register_counter(&mut self, name: &str, help: &str) {
         let full_name = self.full_name(name);
-        self.metrics.insert(full_name.clone(), Metric {
-            name: full_name,
-            help: help.to_string(),
-            metric_type: MetricType::Counter,
-            labels: HashMap::new(),
-            value: MetricValue::Single(0.0),
-            updated_at: Instant::now(),
-        });
+        self.metrics.insert(
+            full_name.clone(),
+            Metric {
+                name: full_name,
+                help: help.to_string(),
+                metric_type: MetricType::Counter,
+                labels: HashMap::new(),
+                value: MetricValue::Single(0.0),
+                updated_at: Instant::now(),
+            },
+        );
     }
 
     /// 注册仪表盘
     pub fn register_gauge(&mut self, name: &str, help: &str) {
         let full_name = self.full_name(name);
-        self.metrics.insert(full_name.clone(), Metric {
-            name: full_name,
-            help: help.to_string(),
-            metric_type: MetricType::Gauge,
-            labels: HashMap::new(),
-            value: MetricValue::Single(0.0),
-            updated_at: Instant::now(),
-        });
+        self.metrics.insert(
+            full_name.clone(),
+            Metric {
+                name: full_name,
+                help: help.to_string(),
+                metric_type: MetricType::Gauge,
+                labels: HashMap::new(),
+                value: MetricValue::Single(0.0),
+                updated_at: Instant::now(),
+            },
+        );
     }
 
     /// 注册直方图
     pub fn register_histogram(&mut self, name: &str, help: &str, buckets: Vec<f64>) {
         let full_name = self.full_name(name);
-        let bucket_values: Vec<(f64, u64)> = buckets.into_iter()
-            .map(|b| (b, 0))
-            .collect();
-        
-        self.metrics.insert(full_name.clone(), Metric {
-            name: full_name,
-            help: help.to_string(),
-            metric_type: MetricType::Histogram,
-            labels: HashMap::new(),
-            value: MetricValue::Histogram {
-                buckets: bucket_values,
-                sum: 0.0,
-                count: 0,
+        let bucket_values: Vec<(f64, u64)> = buckets.into_iter().map(|b| (b, 0)).collect();
+
+        self.metrics.insert(
+            full_name.clone(),
+            Metric {
+                name: full_name,
+                help: help.to_string(),
+                metric_type: MetricType::Histogram,
+                labels: HashMap::new(),
+                value: MetricValue::Histogram {
+                    buckets: bucket_values,
+                    sum: 0.0,
+                    count: 0,
+                },
+                updated_at: Instant::now(),
             },
-            updated_at: Instant::now(),
-        });
+        );
     }
 
     /// 递增计数器
@@ -156,16 +163,21 @@ impl PrometheusMetrics {
     pub fn observe_histogram(&mut self, name: &str, value: f64) {
         let full_name = self.full_name(name);
         if let Some(metric) = self.metrics.get_mut(&full_name) {
-            if let MetricValue::Histogram { ref mut buckets, ref mut sum, ref mut count } = metric.value {
+            if let MetricValue::Histogram {
+                ref mut buckets,
+                ref mut sum,
+                ref mut count,
+            } = metric.value
+            {
                 *sum += value;
                 *count += 1;
-                
+
                 for (bucket, bucket_count) in buckets.iter_mut() {
                     if value <= *bucket {
                         *bucket_count += 1;
                     }
                 }
-                
+
                 metric.updated_at = Instant::now();
             }
         }
@@ -174,11 +186,11 @@ impl PrometheusMetrics {
     /// 导出 Prometheus 格式
     pub fn export(&self) -> String {
         let mut output = String::new();
-        
+
         for metric in self.metrics.values() {
             // 输出帮助文本
             output.push_str(&format!("# HELP {} {}\n", metric.name, metric.help));
-            
+
             // 输出类型
             let type_str = match metric.metric_type {
                 MetricType::Counter => "counter",
@@ -187,13 +199,17 @@ impl PrometheusMetrics {
                 MetricType::Summary => "summary",
             };
             output.push_str(&format!("# TYPE {} {}\n", metric.name, type_str));
-            
+
             // 输出值
             match &metric.value {
                 MetricValue::Single(value) => {
                     output.push_str(&format!("{} {}\n", metric.name, value));
                 }
-                MetricValue::Histogram { buckets, sum, count } => {
+                MetricValue::Histogram {
+                    buckets,
+                    sum,
+                    count,
+                } => {
                     // 输出桶
                     for (bucket, bucket_count) in buckets {
                         output.push_str(&format!(
@@ -201,15 +217,18 @@ impl PrometheusMetrics {
                             metric.name, bucket, bucket_count
                         ));
                     }
-                    output.push_str(&format!("{}_bucket{{le=\"+Inf\"}} {}\n", metric.name, count));
+                    output.push_str(&format!(
+                        "{}_bucket{{le=\"+Inf\"}} {}\n",
+                        metric.name, count
+                    ));
                     output.push_str(&format!("{}_sum {}\n", metric.name, sum));
                     output.push_str(&format!("{}_count {}\n", metric.name, count));
                 }
             }
-            
+
             output.push('\n');
         }
-        
+
         output
     }
 
@@ -235,34 +254,45 @@ impl NodeMetrics {
     /// 创建节点监控
     pub fn new() -> Self {
         let mut metrics = PrometheusMetrics::new("toki", "node");
-        
+
         // 注册基础指标
         metrics.register_counter("blocks_total", "Total number of blocks processed");
-        metrics.register_counter("transactions_total", "Total number of transactions processed");
+        metrics.register_counter(
+            "transactions_total",
+            "Total number of transactions processed",
+        );
         metrics.register_counter("blockchain_height", "Current blockchain height");
         metrics.register_gauge("peers_connected", "Number of connected peers");
         metrics.register_gauge("mining_threads", "Number of mining threads");
         metrics.register_gauge("memory_usage_bytes", "Memory usage in bytes");
         metrics.register_gauge("cpu_usage_percent", "CPU usage percentage");
         metrics.register_gauge("disk_usage_bytes", "Disk usage in bytes");
-        metrics.register_histogram("block_time_seconds", "Block time in seconds", 
-            vec![0.1, 0.5, 1.0, 2.0, 5.0, 10.0, 20.0, 50.0]);
-        metrics.register_histogram("transaction_size_bytes", "Transaction size in bytes",
-            vec![100.0, 500.0, 1000.0, 5000.0, 10000.0, 50000.0]);
-        
+        metrics.register_histogram(
+            "block_time_seconds",
+            "Block time in seconds",
+            vec![0.1, 0.5, 1.0, 2.0, 5.0, 10.0, 20.0, 50.0],
+        );
+        metrics.register_histogram(
+            "transaction_size_bytes",
+            "Transaction size in bytes",
+            vec![100.0, 500.0, 1000.0, 5000.0, 10000.0, 50000.0],
+        );
+
         NodeMetrics { metrics }
     }
 
     /// 记录新区块
     pub fn record_block(&mut self, block_time: f64) {
         self.metrics.inc_counter("blocks_total");
-        self.metrics.observe_histogram("block_time_seconds", block_time);
+        self.metrics
+            .observe_histogram("block_time_seconds", block_time);
     }
 
     /// 记录新交易
     pub fn record_transaction(&mut self, tx_size: f64) {
         self.metrics.inc_counter("transactions_total");
-        self.metrics.observe_histogram("transaction_size_bytes", tx_size);
+        self.metrics
+            .observe_histogram("transaction_size_bytes", tx_size);
     }
 
     /// 更新区块高度
@@ -315,7 +345,7 @@ mod tests {
         metrics.register_counter("test_counter", "Test counter");
         metrics.inc_counter("test_counter");
         metrics.inc_counter("test_counter");
-        
+
         let metric = metrics.get("test_counter").unwrap();
         if let MetricValue::Single(value) = metric.value {
             assert_eq!(value, 2.0);
@@ -327,7 +357,7 @@ mod tests {
         let mut metrics = PrometheusMetrics::new("toki", "node");
         metrics.register_gauge("test_gauge", "Test gauge");
         metrics.set_gauge("test_gauge", 42.0);
-        
+
         let metric = metrics.get("test_gauge").unwrap();
         if let MetricValue::Single(value) = metric.value {
             assert_eq!(value, 42.0);
@@ -341,7 +371,7 @@ mod tests {
         metrics.record_transaction(500.0);
         metrics.update_height(100);
         metrics.update_peers(10);
-        
+
         let export = metrics.export();
         assert!(export.contains("toki_node_blocks_total"));
         assert!(export.contains("toki_node_transactions_total"));

@@ -6,7 +6,7 @@ use axum::Router;
 use tower_http::cors::{Any, CorsLayer};
 use tracing::info;
 
-use crate::{routes, handlers::ApiState};
+use crate::{handlers::ApiState, routes};
 
 /// API 服务器配置
 #[derive(Clone, Debug)]
@@ -38,7 +38,12 @@ impl ApiServer {
         let router = routes::create_routes(state);
 
         let router = if config.enable_cors {
-            router.layer(CorsLayer::new().allow_origin(Any).allow_methods(Any).allow_headers(Any))
+            router.layer(
+                CorsLayer::new()
+                    .allow_origin(Any)
+                    .allow_methods(Any)
+                    .allow_headers(Any),
+            )
         } else {
             router
         };

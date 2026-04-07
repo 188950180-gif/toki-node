@@ -19,13 +19,17 @@ impl Aes256Gcm {
     /// 加密
     pub fn encrypt(&self, nonce: &[u8; 12], plaintext: &[u8]) -> Vec<u8> {
         let nonce = Nonce::from_slice(nonce);
-        self.cipher.encrypt(nonce, plaintext).unwrap_or_else(|_| Vec::new())
+        self.cipher
+            .encrypt(nonce, plaintext)
+            .unwrap_or_else(|_| Vec::new())
     }
 
     /// 解密
     pub fn decrypt(&self, nonce: &[u8; 12], ciphertext: &[u8]) -> Vec<u8> {
         let nonce = Nonce::from_slice(nonce);
-        self.cipher.decrypt(nonce, ciphertext).unwrap_or_else(|_| Vec::new())
+        self.cipher
+            .decrypt(nonce, ciphertext)
+            .unwrap_or_else(|_| Vec::new())
     }
 }
 

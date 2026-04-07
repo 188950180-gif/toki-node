@@ -1,7 +1,7 @@
 //! 区块同步模块
 
-use std::sync::Arc;
 use std::collections::VecDeque;
+use std::sync::Arc;
 
 use tokio::sync::{mpsc, RwLock};
 use tracing::{debug, info, warn};
@@ -52,8 +52,8 @@ pub struct BlockSyncer {
 #[derive(Debug, Clone)]
 pub enum SyncRequest {
     /// 请求区块高度范围
-    GetBlocks { 
-        start: u64, 
+    GetBlocks {
+        start: u64,
         end: u64,
         request_id: u64,
     },
@@ -67,10 +67,7 @@ pub enum SyncRequest {
 #[derive(Debug, Clone)]
 pub enum SyncResponse {
     /// 区块列表
-    Blocks {
-        request_id: u64,
-        blocks: Vec<Block>,
-    },
+    Blocks { request_id: u64, blocks: Vec<Block> },
     /// 单个区块
     Block(Option<Block>),
     /// 最新高度
@@ -84,11 +81,8 @@ impl BlockSyncer {
         request_sender: mpsc::Sender<SyncRequest>,
         response_receiver: mpsc::Receiver<SyncResponse>,
     ) -> Self {
-        let local_height = block_store.get_latest_height()
-            .ok()
-            .flatten()
-            .unwrap_or(0);
-        
+        let local_height = block_store.get_latest_height().ok().flatten().unwrap_or(0);
+
         BlockSyncer {
             block_store,
             local_height,
@@ -143,8 +137,11 @@ impl BlockSyncer {
             target_height,
             current: self.local_height,
         };
-        
-        info!("开始同步: 本地高度 {}, 目标高度 {}", self.local_height, target_height);
+
+        info!(
+            "开始同步: 本地高度 {}, 目标高度 {}",
+            self.local_height, target_height
+        );
 
         // 构建待请求区块队列
         self.pending_blocks.clear();
@@ -158,12 +155,14 @@ impl BlockSyncer {
 
     /// 发送批量请求
     async fn send_batch_requests(&mut self) {
-        while self.current_requests < self.max_concurrent_requests && !self.pending_blocks.is_empty() {
+        while self.current_requests < self.max_concurrent_requests
+            && !self.pending_blocks.is_empty()
+        {
             // 取出一批区块高度
             let start = self.pending_blocks.front().copied().unwrap_or(0);
             let mut end = start;
             let mut count = 0;
-            
+
             while count < 100 && !self.pending_blocks.is_empty() {
                 if let Some(h) = self.pending_blocks.pop_front() {
                     if h == end + 1 || count == 0 {
@@ -175,14 +174,14 @@ impl BlockSyncer {
                     }
                 }
             }
-            
+
             if count > 0 {
                 let request = SyncRequest::GetBlocks {
                     start,
                     end,
                     request_id: start,
                 };
-                
+
                 if let Err(e) = self.request_sender.send(request).await {
                     warn!("发送同步请求失败: {}", e);
                 } else {
@@ -195,10 +194,10 @@ impl BlockSyncer {
     /// 处理收到的区块
     pub async fn handle_blocks(&mut self, _request_id: u64, blocks: Vec<Block>) {
         self.current_requests = self.current_requests.saturating_sub(1);
-        
+
         for block in blocks {
             let height = block.header.height;
-            
+
             // 验证区块
             if !self.validate_block(&block) {
                 warn!("区块 {} 验证失败", height);
@@ -212,7 +211,7 @@ impl BlockSyncer {
             }
 
             self.local_height = height;
-            
+
             // 更新状态
             if let SyncStatus::Syncing { target_height, .. } = self.status {
                 self.status = SyncStatus::Syncing {
@@ -220,7 +219,7 @@ impl BlockSyncer {
                     current: height,
                 };
             }
-            
+
             debug!("同步区块 {} 成功", height);
         }
 
@@ -244,7 +243,10 @@ impl BlockSyncer {
         }
 
         // 验证前序区块哈希
-        if let Ok(Some(prev_block)) = self.block_store.get_block_by_height(block.header.height - 1) {
+        if let Ok(Some(prev_block)) = self
+            .block_store
+            .get_block_by_height(block.header.height - 1)
+        {
             if block.header.prev_hash != prev_block.hash() {
                 return false;
             }
@@ -323,8 +325,17 @@ mod tests {
     fn test_sync_status() {
         let status = SyncStatus::NotSynced;
         assert_eq!(status, SyncStatus::NotSynced);
-        
-        let status = SyncStatus::Syncing { target_height: 100, current: 50 };
-        assert_eq!(status, SyncStatus::Syncing { target_height: 100, current: 50 });
+
+        let status = SyncStatus::Syncing {
+            target_height: 100,
+            current: 50,
+        };
+        assert_eq!(
+            status,
+            SyncStatus::Syncing {
+                target_height: 100,
+                current: 50
+            }
+        );
     }
 }

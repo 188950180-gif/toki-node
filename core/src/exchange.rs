@@ -1,6 +1,6 @@
 //! 法币兑换记录定义
 
-use crate::{Address, Hash, FiatType, TOKI_BASE_UNIT};
+use crate::{Address, FiatType, Hash, TOKI_BASE_UNIT};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 

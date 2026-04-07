@@ -20,11 +20,11 @@ pub struct DifficultyConfig {
 impl Default for DifficultyConfig {
     fn default() -> Self {
         DifficultyConfig {
-            target_block_time: 10,        // 10 秒
-            adjustment_interval: 100,     // 每 100 区块调整
-            min_ratio: 0.5,               // 最小下调 50%
-            max_ratio: 2.0,               // 最大上调 100%
-            smooth_factor: 0.5,           // 平滑因子
+            target_block_time: 10,    // 10 秒
+            adjustment_interval: 100, // 每 100 区块调整
+            min_ratio: 0.5,           // 最小下调 50%
+            max_ratio: 2.0,           // 最大上调 100%
+            smooth_factor: 0.5,       // 平滑因子
         }
     }
 }
@@ -59,7 +59,7 @@ impl DifficultyAdjuster {
     /// 记录区块时间
     pub fn record_block_time(&mut self, timestamp: u64) {
         self.recent_times.push(timestamp);
-        
+
         // 保持最近 100 个区块的时间
         if self.recent_times.len() > 100 {
             self.recent_times.remove(0);
@@ -76,7 +76,7 @@ impl DifficultyAdjuster {
         let first = *self.recent_times.first().unwrap();
         let last = *self.recent_times.last().unwrap();
         let actual_time = last - first;
-        
+
         // 计算目标时间
         let target_time = self.config.target_block_time * (self.recent_times.len() as u64 - 1);
 
@@ -92,7 +92,7 @@ impl DifficultyAdjuster {
 
         // 计算新难度
         let new_difficulty = (self.current_difficulty as f64 * ratio) as u64;
-        
+
         // 确保难度不会变为 0
         let new_difficulty = new_difficulty.max(1);
 
@@ -127,13 +127,13 @@ mod tests {
     #[test]
     fn test_difficulty_adjustment() {
         let mut adjuster = DifficultyAdjuster::new(1_000_000);
-        
+
         // 模拟 100 个区块，每个 10 秒（正常）
         let base_time = 1000;
         for i in 0..100 {
             adjuster.record_block_time(base_time + i * 10);
         }
-        
+
         let new_diff = adjuster.calculate_new_difficulty();
         // 出块时间正常，难度应该接近初始值
         assert!(new_diff > 500_000 && new_diff < 2_000_000);
@@ -142,13 +142,13 @@ mod tests {
     #[test]
     fn test_difficulty_increase() {
         let mut adjuster = DifficultyAdjuster::new(1_000_000);
-        
+
         // 模拟 100 个区块，每个 5 秒（出块太快）
         let base_time = 1000;
         for i in 0..100 {
             adjuster.record_block_time(base_time + i * 5);
         }
-        
+
         let new_diff = adjuster.calculate_new_difficulty();
         // 出块太快，难度应该上调（但由于平滑因子，可能不会超过初始值太多）
         // 实际时间 = 495 秒，目标时间 = 990 秒，ratio = 0.5
@@ -160,13 +160,13 @@ mod tests {
     #[test]
     fn test_difficulty_decrease() {
         let mut adjuster = DifficultyAdjuster::new(1_000_000);
-        
+
         // 模拟 100 个区块，每个 20 秒（出块太慢）
         let base_time = 1000;
         for i in 0..100 {
             adjuster.record_block_time(base_time + i * 20);
         }
-        
+
         let new_diff = adjuster.calculate_new_difficulty();
         // 出块太慢，难度应该下调
         // 实际时间 = 1980 秒，目标时间 = 990 秒，ratio = 2.0

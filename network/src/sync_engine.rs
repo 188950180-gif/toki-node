@@ -1,14 +1,14 @@
 //! 网络事件循环与区块同步
-//! 
+//!
 //! 实现节点间通信、区块同步、状态同步
 
+use anyhow::Result;
+use async_trait::async_trait;
+use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
-use serde::{Deserialize, Serialize};
-use anyhow::Result;
-use async_trait::async_trait;
-use tracing::{info, warn, debug};
+use tracing::{debug, info, warn};
 
 use toki_core::{Block, Hash, Transaction};
 
@@ -23,10 +23,7 @@ pub enum NetworkEvent {
     /// 节点断开
     PeerDisconnected(PeerId),
     /// 收到区块
-    BlockReceived {
-        from: PeerId,
-        block: Block,
-    },
+    BlockReceived { from: PeerId, block: Block },
     /// 收到交易
     TransactionReceived {
         from: PeerId,
@@ -39,15 +36,9 @@ pub enum NetworkEvent {
         count: u32,
     },
     /// 区块响应
-    BlockResponse {
-        to: PeerId,
-        blocks: Vec<Block>,
-    },
+    BlockResponse { to: PeerId, blocks: Vec<Block> },
     /// 状态同步请求
-    StateSyncRequest {
-        from: PeerId,
-        height: u64,
-    },
+    StateSyncRequest { from: PeerId, height: u64 },
     /// 心跳
     Heartbeat {
         from: PeerId,
@@ -68,14 +59,9 @@ pub enum SyncState {
         from_peer: PeerId,
     },
     /// 已同步
-    Synced {
-        height: u64,
-        hash: Hash,
-    },
+    Synced { height: u64, hash: Hash },
     /// 同步失败
-    Failed {
-        reason: String,
-    },
+    Failed { reason: String },
 }
 
 /// 区块同步器配置
@@ -163,53 +149,60 @@ impl BlockSynchronizer {
     /// 处理网络事件
     pub fn handle_event(&mut self, event: NetworkEvent) -> Result<Vec<NetworkAction>> {
         let mut actions = Vec::new();
-        
+
         match event {
             NetworkEvent::PeerConnected(peer_id) => {
                 self.on_peer_connected(&peer_id);
                 actions.push(NetworkAction::RequestState { peer_id });
             }
-            
+
             NetworkEvent::PeerDisconnected(peer_id) => {
                 self.on_peer_disconnected(&peer_id);
             }
-            
+
             NetworkEvent::BlockReceived { from, block } => {
                 self.on_block_received(&from, &block)?;
                 actions.push(NetworkAction::ProcessBlock { block });
             }
-            
-            NetworkEvent::BlockRequest { from, start_height, count } => {
+
+            NetworkEvent::BlockRequest {
+                from,
+                start_height,
+                count,
+            } => {
                 let blocks = self.get_blocks_for_sync(start_height, count);
                 actions.push(NetworkAction::SendBlocks { to: from, blocks });
             }
-            
+
             NetworkEvent::Heartbeat { from, height, hash } => {
                 self.on_heartbeat(&from, height, hash);
             }
-            
+
             NetworkEvent::StateSyncRequest { from, height } => {
                 actions.push(NetworkAction::SendState { to: from, height });
             }
-            
+
             _ => {}
         }
-        
+
         Ok(actions)
     }
 
     /// 节点连接
     fn on_peer_connected(&mut self, peer_id: &PeerId) {
         info!("节点连接: {}", peer_id);
-        
-        self.peers.insert(peer_id.clone(), PeerInfo {
-            id: peer_id.clone(),
-            height: 0,
-            hash: Hash::ZERO,
-            last_heartbeat: Instant::now(),
-            latency: 0,
-            trusted: false,
-        });
+
+        self.peers.insert(
+            peer_id.clone(),
+            PeerInfo {
+                id: peer_id.clone(),
+                height: 0,
+                hash: Hash::ZERO,
+                last_heartbeat: Instant::now(),
+                latency: 0,
+                trusted: false,
+            },
+        );
     }
 
     /// 节点断开
@@ -221,24 +214,24 @@ impl BlockSynchronizer {
     /// 收到区块
     fn on_block_received(&mut self, from: &PeerId, block: &Block) -> Result<()> {
         let height = block.header.height;
-        
+
         debug!("收到区块: 高度={}, 来自={}", height, from);
-        
+
         // 移除已请求标记
         self.requested_heights.remove(&height);
-        
+
         // 添加到待处理队列
         if self.pending_blocks.len() < self.config.max_pending_blocks {
             self.pending_blocks.push_back(block.clone());
         }
-        
+
         // 更新同步状态
         if let SyncState::Syncing { current_height, .. } = &mut self.sync_state {
             if height > *current_height {
                 *current_height = height;
             }
         }
-        
+
         Ok(())
     }
 
@@ -249,7 +242,7 @@ impl BlockSynchronizer {
             peer.hash = hash;
             peer.last_heartbeat = Instant::now();
         }
-        
+
         // 检查是否需要同步
         if height > self.local_height {
             self.check_sync_needed();
@@ -261,21 +254,20 @@ impl BlockSynchronizer {
         if !matches!(self.sync_state, SyncState::Idle) {
             return;
         }
-        
+
         // 找到最高节点
-        let best_peer = self.peers.values()
-            .max_by_key(|p| p.height);
-        
+        let best_peer = self.peers.values().max_by_key(|p| p.height);
+
         if let Some(peer) = best_peer {
             if peer.height > self.local_height {
                 info!("开始同步: 本地={}, 远程={}", self.local_height, peer.height);
-                
+
                 self.sync_state = SyncState::Syncing {
                     target_height: peer.height,
                     current_height: self.local_height,
                     from_peer: peer.id.clone(),
                 };
-                
+
                 self.sync_start_time = Some(Instant::now());
             }
         }
@@ -290,29 +282,34 @@ impl BlockSynchronizer {
     /// 开始同步
     pub fn start_sync(&mut self) -> Result<Vec<NetworkAction>> {
         let mut actions = Vec::new();
-        
+
         // 找到最佳同步源
-        let best_peer = self.peers.values()
+        let best_peer = self
+            .peers
+            .values()
             .filter(|p| p.height > self.local_height)
             .max_by_key(|p| p.height);
-        
+
         if let Some(peer) = best_peer {
             let start_height = self.local_height + 1;
-            
-            info!("请求同步: {} -> {}, 从高度 {}", peer.id, peer.height, start_height);
-            
+
+            info!(
+                "请求同步: {} -> {}, 从高度 {}",
+                peer.id, peer.height, start_height
+            );
+
             actions.push(NetworkAction::RequestBlocks {
                 to: peer.id.clone(),
                 start_height,
                 count: self.config.blocks_per_request,
             });
-            
+
             // 标记已请求
             for h in start_height..start_height + self.config.blocks_per_request as u64 {
                 self.requested_heights.insert(h);
             }
         }
-        
+
         Ok(actions)
     }
 
@@ -320,7 +317,7 @@ impl BlockSynchronizer {
     pub fn update_local_state(&mut self, height: u64, hash: Hash) {
         self.local_height = height;
         self.local_hash = hash;
-        
+
         // 检查同步是否完成
         if let SyncState::Syncing { target_height, .. } = &self.sync_state {
             if height >= *target_height {
@@ -354,7 +351,11 @@ impl BlockSynchronizer {
     /// 获取同步进度
     pub fn sync_progress(&self) -> f64 {
         match &self.sync_state {
-            SyncState::Syncing { target_height, current_height, .. } => {
+            SyncState::Syncing {
+                target_height,
+                current_height,
+                ..
+            } => {
                 if *target_height > 0 {
                     *current_height as f64 / *target_height as f64
                 } else {
@@ -383,7 +384,11 @@ pub enum NetworkAction {
     /// 发送状态
     SendState { to: PeerId, height: u64 },
     /// 请求区块
-    RequestBlocks { to: PeerId, start_height: u64, count: u32 },
+    RequestBlocks {
+        to: PeerId,
+        start_height: u64,
+        count: u32,
+    },
     /// 处理区块
     ProcessBlock { block: Block },
     /// 广播区块
@@ -404,7 +409,7 @@ mod tests {
     fn test_synchronizer_creation() {
         let config = BlockSyncConfig::default();
         let syncer = BlockSynchronizer::new(config);
-        
+
         assert!(matches!(syncer.state(), SyncState::Idle));
         assert_eq!(syncer.peer_count(), 0);
     }
@@ -413,9 +418,11 @@ mod tests {
     fn test_peer_connected() {
         let config = BlockSyncConfig::default();
         let mut syncer = BlockSynchronizer::new(config);
-        
-        let actions = syncer.handle_event(NetworkEvent::PeerConnected("peer1".to_string())).unwrap();
-        
+
+        let actions = syncer
+            .handle_event(NetworkEvent::PeerConnected("peer1".to_string()))
+            .unwrap();
+
         assert_eq!(syncer.peer_count(), 1);
         assert_eq!(actions.len(), 1);
     }

@@ -1,7 +1,6 @@
 //! 自动分配模块
-//! 
+//!
 //! 实现基础赠送、集体账户分配、国家账户分配
-
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -55,7 +54,7 @@ impl Distributor {
         if elapsed_days >= self.config.unlock_days {
             return total;
         }
-        
+
         let unlock_ratio = elapsed_days as f64 * self.config.daily_unlock_rate;
         (total as f64 * unlock_ratio) as u64
     }
@@ -64,10 +63,14 @@ impl Distributor {
     pub fn distribute_by_region(&self, region: Region, population: u64) -> DistributionResult {
         let amount_per_person = self.config.per_capita_amount * TOKI_BASE_UNIT;
         let total = population.saturating_mul(amount_per_person);
-        
-        info!("区域分配: {:?} 人口={} 总额={} toki", 
-            region, population, total / TOKI_BASE_UNIT);
-        
+
+        info!(
+            "区域分配: {:?} 人口={} 总额={} toki",
+            region,
+            population,
+            total / TOKI_BASE_UNIT
+        );
+
         DistributionResult {
             region,
             population,
@@ -108,7 +111,7 @@ impl UnlockPlan {
         let now = Utc::now();
         let end = now + chrono::Duration::days(days as i64);
         let daily = total / days;
-        
+
         UnlockPlan {
             total_amount: total,
             unlocked_amount: 0,
@@ -124,12 +127,12 @@ impl UnlockPlan {
         if now >= self.end_time {
             return self.total_amount;
         }
-        
+
         let elapsed = (now - self.start_time).num_days();
         if elapsed <= 0 {
             return 0;
         }
-        
+
         self.daily_amount.saturating_mul(elapsed as u64)
     }
 }
@@ -141,10 +144,10 @@ mod tests {
     #[test]
     fn test_basic_grant() {
         let distributor = Distributor::default();
-        
+
         let personal = distributor.calculate_basic_grant(AccountType::Personal);
         assert_eq!(personal, 100_000 * TOKI_BASE_UNIT);
-        
+
         let collective = distributor.calculate_basic_grant(AccountType::Collective);
         assert_eq!(collective, 1_000_000 * TOKI_BASE_UNIT);
     }
@@ -153,15 +156,15 @@ mod tests {
     fn test_unlock_calculation() {
         let distributor = Distributor::default();
         let total = 100_000 * TOKI_BASE_UNIT;
-        
+
         // 0 天解锁
         let unlock_0 = distributor.calculate_unlock_amount(total, 0);
         assert_eq!(unlock_0, 0);
-        
+
         // 365 天完全解锁
         let unlock_full = distributor.calculate_unlock_amount(total, 365);
         assert_eq!(unlock_full, total);
-        
+
         // 182 天解锁一半
         let unlock_half = distributor.calculate_unlock_amount(total, 182);
         assert!(unlock_half > 0 && unlock_half < total);
@@ -171,7 +174,7 @@ mod tests {
     fn test_unlock_plan() {
         let total = 365_000 * TOKI_BASE_UNIT;
         let plan = UnlockPlan::new(total, 365);
-        
+
         assert_eq!(plan.daily_amount, 1_000 * TOKI_BASE_UNIT);
     }
 }

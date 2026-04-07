@@ -15,23 +15,13 @@ pub enum ProtocolMessage {
         node_id: String,
     },
     /// 握手响应
-    HandshakeResponse {
-        accepted: bool,
-        height: u64,
-    },
+    HandshakeResponse { accepted: bool, height: u64 },
     /// 区块请求
-    BlockRequest {
-        start_height: u64,
-        count: u32,
-    },
+    BlockRequest { start_height: u64, count: u32 },
     /// 区块响应
-    BlockResponse {
-        blocks: Vec<Vec<u8>>,
-    },
+    BlockResponse { blocks: Vec<Vec<u8>> },
     /// 交易广播
-    TransactionBroadcast {
-        tx_data: Vec<u8>,
-    },
+    TransactionBroadcast { tx_data: Vec<u8> },
     /// 状态查询
     StatusQuery,
     /// 状态响应

@@ -15,10 +15,7 @@ pub enum GossipMessage {
         proposer: Vec<u8>,
     },
     /// 新交易广播
-    NewTransaction {
-        tx_hash: Vec<u8>,
-        tx_data: Vec<u8>,
-    },
+    NewTransaction { tx_hash: Vec<u8>, tx_data: Vec<u8> },
     /// 难度更新
     DifficultyUpdate {
         new_difficulty: u64,

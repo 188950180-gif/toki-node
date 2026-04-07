@@ -1,5 +1,5 @@
 //! AI 任务调度器
-//! 
+//!
 //! 协调所有 AI 自动执行任务
 
 use std::sync::Arc;
@@ -7,7 +7,7 @@ use std::sync::Arc;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use tokio::sync::RwLock;
-use tracing::{info, debug};
+use tracing::{debug, info};
 
 /// 任务类型
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -111,10 +111,10 @@ impl Default for SchedulerConfig {
     fn default() -> Self {
         SchedulerConfig {
             enabled: true,
-            distribute_interval: 86400,     // 每天
-            equalization_interval: 10080,   // 每周（区块数转秒）
-            theta_interval: 86400,          // 每天
-            charity_interval: 86400,        // 每天
+            distribute_interval: 86400,   // 每天
+            equalization_interval: 10080, // 每周（区块数转秒）
+            theta_interval: 86400,        // 每天
+            charity_interval: 86400,      // 每天
         }
     }
 }
@@ -131,20 +131,36 @@ impl Scheduler {
     pub fn new(config: SchedulerConfig) -> Self {
         let mut tasks = Vec::new();
         let mut id = 1u64;
-        
+
         // 创建默认任务
-        tasks.push(ScheduledTask::new(id, TaskType::DistributeBasic, config.distribute_interval));
+        tasks.push(ScheduledTask::new(
+            id,
+            TaskType::DistributeBasic,
+            config.distribute_interval,
+        ));
         id += 1;
-        tasks.push(ScheduledTask::new(id, TaskType::CheckEqualization, config.equalization_interval));
+        tasks.push(ScheduledTask::new(
+            id,
+            TaskType::CheckEqualization,
+            config.equalization_interval,
+        ));
         id += 1;
-        tasks.push(ScheduledTask::new(id, TaskType::CalculateTheta, config.theta_interval));
+        tasks.push(ScheduledTask::new(
+            id,
+            TaskType::CalculateTheta,
+            config.theta_interval,
+        ));
         id += 1;
-        tasks.push(ScheduledTask::new(id, TaskType::ExecuteCharity, config.charity_interval));
+        tasks.push(ScheduledTask::new(
+            id,
+            TaskType::ExecuteCharity,
+            config.charity_interval,
+        ));
         id += 1;
         tasks.push(ScheduledTask::new(id, TaskType::CheckFiatChannel, 86400));
         id += 1;
         tasks.push(ScheduledTask::new(id, TaskType::RecoverInactive, 86400 * 7));
-        
+
         Scheduler {
             config,
             tasks: Arc::new(RwLock::new(tasks)),
@@ -159,7 +175,10 @@ impl Scheduler {
 
     /// 获取待执行任务
     pub async fn get_pending_tasks(&self) -> Vec<ScheduledTask> {
-        self.tasks.read().await.iter()
+        self.tasks
+            .read()
+            .await
+            .iter()
             .filter(|t| t.should_run())
             .cloned()
             .collect()
@@ -168,15 +187,15 @@ impl Scheduler {
     /// 执行任务
     pub async fn execute_task(&self, task_id: u64) -> Result<(), String> {
         let mut tasks = self.tasks.write().await;
-        
+
         let task = tasks.iter_mut().find(|t| t.id == task_id);
         if let Some(task) = task {
             task.start();
             debug!("开始执行任务: {:?}", task.task_type);
-            
+
             // 模拟执行
             let result = self.run_task(&task.task_type).await;
-            
+
             match result {
                 Ok(_) => {
                     task.complete();
@@ -233,8 +252,11 @@ impl Scheduler {
     pub async fn status(&self) -> SchedulerStatus {
         let tasks = self.tasks.read().await;
         let pending = tasks.iter().filter(|t| t.should_run()).count();
-        let running = tasks.iter().filter(|t| t.status == TaskStatus::Running).count();
-        
+        let running = tasks
+            .iter()
+            .filter(|t| t.status == TaskStatus::Running)
+            .count();
+
         SchedulerStatus {
             enabled: self.config.enabled,
             total_tasks: tasks.len(),
@@ -266,14 +288,14 @@ mod tests {
     #[test]
     fn test_scheduled_task() {
         let mut task = ScheduledTask::new(1, TaskType::DistributeBasic, 3600);
-        
+
         assert!(task.should_run());
         assert_eq!(task.run_count, 0);
-        
+
         task.start();
         assert_eq!(task.status, TaskStatus::Running);
         assert!(!task.should_run());
-        
+
         task.complete();
         assert_eq!(task.status, TaskStatus::Completed);
         assert_eq!(task.run_count, 1);
@@ -282,7 +304,7 @@ mod tests {
     #[tokio::test]
     async fn test_scheduler() {
         let scheduler = Scheduler::default();
-        
+
         let status = scheduler.status().await;
         assert!(status.enabled);
         assert_eq!(status.total_tasks, 6);

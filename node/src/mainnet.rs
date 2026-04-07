@@ -1,11 +1,11 @@
 //! 主网部署配置
-//! 
+//!
 //! 生产环境部署配置和脚本
 
-use std::path::{Path, PathBuf};
-use std::fs;
-use serde::{Deserialize, Serialize};
 use anyhow::Result;
+use serde::{Deserialize, Serialize};
+use std::fs;
+use std::path::{Path, PathBuf};
 use tracing::info;
 
 /// 主网配置
@@ -75,13 +75,11 @@ impl Default for MainnetConfig {
             data_dir: PathBuf::from("/opt/toki/data"),
             network_port: 30333,
             api_port: 8080,
-            seed_nodes: vec![
-                SeedNode {
-                    name: "seed-1".to_string(),
-                    ip: "182.254.176.30".to_string(),
-                    port: 30333,
-                },
-            ],
+            seed_nodes: vec![SeedNode {
+                name: "seed-1".to_string(),
+                ip: "182.254.176.30".to_string(),
+                port: 30333,
+            }],
             block_time: 10,
             initial_difficulty: 1_000_000,
             max_connections: 200,
@@ -113,41 +111,41 @@ impl MainnetDeployer {
     /// 部署主网
     pub fn deploy(&self) -> Result<MainnetDeploymentReport> {
         info!("开始主网部署...");
-        
+
         let mut report = MainnetDeploymentReport::default();
-        
+
         // 1. 创建目录结构
         self.create_directories()?;
         report.directories_created = true;
         info!("✓ 目录结构创建完成");
-        
+
         // 2. 生成配置文件
         self.generate_configs()?;
         report.configs_generated = true;
         info!("✓ 配置文件生成完成");
-        
+
         // 3. 生成 systemd 服务文件
         self.generate_systemd_service()?;
         report.service_created = true;
         info!("✓ systemd 服务文件生成完成");
-        
+
         // 4. 生成启动脚本
         self.generate_scripts()?;
         report.scripts_created = true;
         info!("✓ 启动脚本生成完成");
-        
+
         // 5. 初始化数据库
         self.init_database()?;
         report.database_initialized = true;
         info!("✓ 数据库初始化完成");
-        
+
         // 6. 创建创世区块
         self.create_genesis()?;
         report.genesis_created = true;
         info!("✓ 创世区块创建完成");
-        
+
         report.success = true;
-        
+
         info!("主网部署完成！");
         Ok(report)
     }
@@ -161,26 +159,20 @@ impl MainnetDeployer {
             PathBuf::from("/opt/toki/bin"),
             PathBuf::from("/opt/toki/config"),
         ];
-        
+
         for dir in &dirs {
             if !dir.exists() {
                 fs::create_dir_all(dir)?;
             }
         }
-        
+
         // 子目录
-        let subdirs = vec![
-            "blocks",
-            "transactions",
-            "accounts",
-            "state",
-            "peers",
-        ];
-        
+        let subdirs = vec!["blocks", "transactions", "accounts", "state", "peers"];
+
         for subdir in subdirs {
             fs::create_dir_all(self.config.data_dir.join(subdir))?;
         }
-        
+
         Ok(())
     }
 
@@ -229,7 +221,9 @@ max_files = 10
             self.config.data_dir,
             self.config.backup.backup_dir,
             self.config.network_port,
-            self.config.seed_nodes.iter()
+            self.config
+                .seed_nodes
+                .iter()
                 .map(|s| format!("\"{}\"", s.to_multiaddr()))
                 .collect::<Vec<_>>()
                 .join(", "),
@@ -240,9 +234,9 @@ max_files = 10
             self.config.api_port,
             self.config.log_level,
         );
-        
+
         fs::write("/opt/toki/config/node.toml", node_config)?;
-        
+
         Ok(())
     }
 
@@ -284,12 +278,11 @@ Environment="TOKI_CHAIN_ID={}"
 [Install]
 WantedBy=multi-user.target
 "#,
-            self.config.log_level,
-            self.config.chain_id,
+            self.config.log_level, self.config.chain_id,
         );
-        
+
         fs::write("/opt/toki/config/toki-node.service", service)?;
-        
+
         Ok(())
     }
 
@@ -315,7 +308,7 @@ sudo systemctl enable toki-node
 echo "节点已启动"
 "#;
         fs::write("/opt/toki/bin/start.sh", start_script)?;
-        
+
         // 停止脚本
         let stop_script = r#"#!/bin/bash
 # Toki 节点停止脚本
@@ -329,7 +322,7 @@ sudo systemctl stop toki-node
 echo "节点已停止"
 "#;
         fs::write("/opt/toki/bin/stop.sh", stop_script)?;
-        
+
         // 状态检查脚本
         let status_script = r#"#!/bin/bash
 # Toki 节点状态检查
@@ -357,7 +350,7 @@ echo "最近日志:"
 sudo journalctl -u toki-node -n 20 --no-pager
 "#;
         fs::write("/opt/toki/bin/status.sh", status_script)?;
-        
+
         Ok(())
     }
 
@@ -383,12 +376,12 @@ sudo journalctl -u toki-node -n 20 --no-pager
                 "initial_difficulty": self.config.initial_difficulty,
             },
         });
-        
+
         fs::write(
             self.config.data_dir.join("genesis.json"),
-            serde_json::to_string_pretty(&genesis)?
+            serde_json::to_string_pretty(&genesis)?,
         )?;
-        
+
         Ok(())
     }
 
@@ -458,7 +451,7 @@ mod tests {
             ip: "192.168.1.1".to_string(),
             port: 30333,
         };
-        
+
         assert_eq!(seed.to_multiaddr(), "/ip4/192.168.1.1/tcp/30333");
     }
 }

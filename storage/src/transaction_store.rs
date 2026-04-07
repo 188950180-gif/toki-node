@@ -1,6 +1,6 @@
 //! 交易存储
 
-use crate::{Database, StorageError, CF_TRANSACTIONS, CF_KEY_IMAGES};
+use crate::{Database, StorageError, CF_KEY_IMAGES, CF_TRANSACTIONS};
 use bincode;
 use std::sync::Arc;
 use toki_core::{Hash, Transaction};
