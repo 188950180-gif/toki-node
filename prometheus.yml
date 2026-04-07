@@ -1,0 +1,39 @@
+# Prometheus 配置
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    monitor: 'toki-monitor'
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+          # - alertmanager:9093
+
+rule_files:
+  # - "alert_rules.yml"
+
+scrape_configs:
+  # Toki 节点监控
+  - job_name: 'toki-node'
+    static_configs:
+      - targets: ['localhost:8080']
+    metrics_path: '/metrics'
+    scrape_interval: 10s
+
+  # Prometheus 自身监控
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # 系统监控（node_exporter）
+  - job_name: 'node'
+    static_configs:
+      - targets: ['localhost:9100']
+
+  # 进程监控（process_exporter）
+  - job_name: 'process'
+    static_configs:
+      - targets: ['localhost:9256']

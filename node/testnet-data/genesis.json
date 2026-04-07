@@ -1,0 +1,19 @@
+{
+  "accounts": [
+    {
+      "address": "toki1alice0000000000000000000000000000000",
+      "initial_balance": 1000000000000,
+      "name": "alice"
+    },
+    {
+      "address": "toki1bob00000000000000000000000000000000000",
+      "initial_balance": 1000000000000,
+      "name": "bob"
+    }
+  ],
+  "chain_id": 1000,
+  "height": 0,
+  "name": "toki-testnet",
+  "timestamp": 0,
+  "transactions": []
+}

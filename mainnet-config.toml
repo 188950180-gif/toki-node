@@ -1,0 +1,31 @@
+# Toki 主网配置文件
+# 公网部署: 182.254.176.30
+# 系统: Ubuntu Server 24.04 LTS 64bit
+
+data_dir = "/opt/toki/data"
+backup_path = "/opt/toki/backups"
+log_level = "info"
+
+[network]
+# 公网监听地址
+listen_addr = "/ip4/0.0.0.0/tcp/30333"
+# 种子节点（首次部署时为空，其他节点连接此节点时使用）
+bootstrap_peers = []
+# 最大连接数
+max_connections = 200
+# 启用 UPnP（公网部署不需要）
+enable_upnp = false
+
+[consensus]
+# 启用挖矿
+enable_mining = true
+# 矿工地址（启动时指定）
+miner_address = ""
+# 目标出块时间（秒）
+target_block_time = 10
+
+[api]
+# API 监听地址（公网访问）
+listen_addr = "0.0.0.0:8080"
+# 启用 WebSocket
+enable_ws = true

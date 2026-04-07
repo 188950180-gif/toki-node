@@ -1,0 +1,32 @@
+[package]
+name = "toki-core"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+tokio.workspace = true
+async-trait.workspace = true
+futures.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+bincode.workspace = true
+blake3.workspace = true
+ed25519-dalek.workspace = true
+curve25519-dalek.workspace = true
+rand.workspace = true
+thiserror.workspace = true
+anyhow.workspace = true
+chrono.workspace = true
+bytes.workspace = true
+hex.workspace = true
+base58.workspace = true
+parking_lot.workspace = true
+tracing.workspace = true
+
+[dev-dependencies]
+proptest.workspace = true
+tempfile = "3.10"
+toki-storage = { path = "../storage" }
+toki-consensus = { path = "../consensus" }

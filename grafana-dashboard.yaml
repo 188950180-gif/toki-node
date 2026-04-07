@@ -1,0 +1,81 @@
+# Toki 监控仪表板配置
+# 用于 Grafana
+
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    url: http://localhost:9090
+    isDefault: true
+
+dashboards:
+  - uid: toki-node
+    title: Toki Node Dashboard
+    panels:
+      - title: Block Height
+        type: stat
+        datasource: Prometheus
+        targets:
+          - expr: toki_block_height
+        gridPos:
+          x: 0
+          y: 0
+          w: 4
+          h: 4
+
+      - title: Transaction Count
+        type: stat
+        datasource: Prometheus
+        targets:
+          - expr: toki_transaction_count
+        gridPos:
+          x: 4
+          y: 0
+          w: 4
+          h: 4
+
+      - title: Peer Count
+        type: stat
+        datasource: Prometheus
+        targets:
+          - expr: toki_peer_count
+        gridPos:
+          x: 8
+          y: 0
+          w: 4
+          h: 4
+
+      - title: Memory Usage
+        type: graph
+        datasource: Prometheus
+        targets:
+          - expr: toki_memory_bytes
+        gridPos:
+          x: 0
+          y: 4
+          w: 12
+          h: 6
+
+      - title: CPU Usage
+        type: graph
+        datasource: Prometheus
+        targets:
+          - expr: toki_cpu_percent
+        gridPos:
+          x: 0
+          y: 10
+          w: 12
+          h: 6
+
+      - title: Block Time
+        type: graph
+        datasource: Prometheus
+        targets:
+          - expr: toki_block_time_seconds
+        gridPos:
+          x: 0
+          y: 16
+          w: 12
+          h: 6

@@ -1,0 +1,28 @@
+# Toki 种子节点配置
+# 公网 IP: 182.254.176.30
+# 系统: Ubuntu Server 24.04 LTS 64bit
+
+data_dir = "/opt/toki/data"
+backup_path = "/opt/toki/backups"
+log_level = "info"
+
+[network]
+# 监听所有接口
+listen_addr = "/ip4/0.0.0.0/tcp/30333"
+# 种子节点（自身为种子节点，列表为空）
+bootstrap_peers = []
+# 最大连接数
+max_connections = 500
+# 启用 UPnP
+enable_upnp = false
+
+[consensus]
+# 启用挖矿（种子节点可以挖矿）
+enable_mining = true
+miner_address = ""
+target_block_time = 10
+
+[api]
+# API 监听
+listen_addr = "0.0.0.0:8080"
+enable_ws = true

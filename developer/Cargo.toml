@@ -1,0 +1,27 @@
+[package]
+name = "toki-developer"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+tokio.workspace = true
+async-trait.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+aes-gcm.workspace = true
+x25519-dalek.workspace = true
+ed25519-dalek.workspace = true
+thiserror.workspace = true
+anyhow.workspace = true
+tracing.workspace = true
+chrono.workspace = true
+parking_lot.workspace = true
+
+toki-core = { path = "../core" }
+toki-storage = { path = "../storage" }
+toki-crypto = { path = "../crypto" }
+
+[dev-dependencies]
+proptest.workspace = true

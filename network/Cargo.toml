@@ -1,0 +1,27 @@
+[package]
+name = "toki-network"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+tokio.workspace = true
+async-trait.workspace = true
+futures.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+bincode.workspace = true
+libp2p.workspace = true
+thiserror.workspace = true
+anyhow.workspace = true
+tracing.workspace = true
+chrono.workspace = true
+parking_lot.workspace = true
+bytes.workspace = true
+
+toki-core = { path = "../core" }
+toki-storage = { path = "../storage" }
+
+[dev-dependencies]
+proptest.workspace = true

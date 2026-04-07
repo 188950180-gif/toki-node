@@ -1,0 +1,44 @@
+# Toki 种子节点配置文件
+# 用于启动网络中的第一个节点
+
+[node]
+data_dir = "./data"
+log_level = "info"
+
+[network]
+# 监听所有网络接口
+listen_addr = "/ip4/0.0.0.0/tcp/30333"
+# 作为种子节点，不连接其他节点
+bootstrap_peers = []
+# 启用 UPnP 端口映射（如果有防火墙/NAT）
+enable_upnp = true
+# 最大连接数
+max_connections = 100
+# 连接超时（秒）
+connection_timeout = 30
+
+[consensus]
+# 启用挖矿
+enable_mining = true
+# 矿工地址（替换为您的地址）
+miner_address = ""
+# 目标出块时间（秒）
+target_block_time = 10
+# 难度调整周期（区块数）
+difficulty_adjustment_interval = 100
+
+[api]
+# REST API 监听地址
+listen_addr = "0.0.0.0:8080"
+# 启用 WebSocket
+enable_ws = true
+
+[mining]
+# 挖矿线程数（0 = 自动检测 CPU 核心数）
+thread_count = 0
+# 是否启用 GPU 挖矿（默认 false，使用 CPU）
+enable_gpu = false
+# 最大功耗限制（瓦特，0 = 无限制）
+max_power_watts = 0
+# 挖矿优先级（0-10，默认 5）
+priority = 5

@@ -1,0 +1,62 @@
+version: '3.8'
+
+services:
+  toki-node:
+    build: .
+    container_name: toki-node
+    ports:
+      - "30333:30333"  # P2P 网络
+      - "8080:8080"    # API 服务
+    volumes:
+      - ./data:/data
+      - ./config.toml:/app/config.toml:ro
+    environment:
+      - RUST_LOG=info
+      - TOKI_DATA_DIR=/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+    networks:
+      - toki-network
+
+  # Prometheus 监控（可选）
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: toki-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+    restart: unless-stopped
+    networks:
+      - toki-network
+
+  # Grafana 仪表板（可选）
+  grafana:
+    image: grafana/grafana:latest
+    container_name: toki-grafana
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    restart: unless-stopped
+    networks:
+      - toki-network
+
+networks:
+  toki-network:
+    driver: bridge
+
+volumes:
+  prometheus-data:
+  grafana-data:

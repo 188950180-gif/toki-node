@@ -1,0 +1,27 @@
+[package]
+name = "toki-crypto"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+serde.workspace = true
+blake3.workspace = true
+ed25519-dalek.workspace = true
+curve25519-dalek.workspace = true
+rand.workspace = true
+aes-gcm.workspace = true
+x25519-dalek.workspace = true
+thiserror.workspace = true
+anyhow.workspace = true
+tracing.workspace = true
+bytes.workspace = true
+hex.workspace = true
+base58.workspace = true
+
+toki-core = { path = "../core" }
+
+[dev-dependencies]
+proptest.workspace = true
+criterion.workspace = true

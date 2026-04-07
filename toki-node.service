@@ -1,0 +1,28 @@
+[Unit]
+Description=Toki Node
+After=network.target
+
+[Service]
+Type=simple
+User=toki
+Group=toki
+WorkingDirectory=/opt/toki
+ExecStart=/opt/toki/toki-node start --config /opt/toki/config.toml
+Restart=always
+RestartSec=10
+LimitNOFILE=65536
+
+# 安全配置
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/toki/data
+
+# 日志
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=toki-node
+
+[Install]
+WantedBy=multi-user.target

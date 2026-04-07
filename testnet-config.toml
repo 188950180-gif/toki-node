@@ -1,0 +1,20 @@
+# Toki 测试网配置
+
+data_dir = "./testnet-data"
+backup_path = "./testnet-backups"
+log_level = "info"
+
+[network]
+listen_addr = "/ip4/0.0.0.0/tcp/30333"
+bootstrap_peers = []
+max_connections = 50
+enable_upnp = false
+
+[consensus]
+enable_mining = true
+miner_address = ""
+target_block_time = 10
+
+[api]
+listen_addr = "0.0.0.0:8080"
+enable_ws = true

@@ -1,0 +1,165 @@
+{
+  "dashboard": {
+    "title": "Toki Node Dashboard",
+    "uid": "toki-node",
+    "version": 1,
+    "panels": [
+      {
+        "title": "Block Height",
+        "type": "gauge",
+        "datasource": "Prometheus",
+        "targets": [
+          {
+            "expr": "toki_block_height",
+            "legendFormat": "Height"
+          }
+        ],
+        "gridPos": {
+          "x": 0,
+          "y": 0,
+          "w": 8,
+          "h": 4
+        }
+      },
+      {
+        "title": "Transaction Count",
+        "type": "stat",
+        "datasource": "Prometheus",
+        "targets": [
+          {
+            "expr": "toki_transaction_count",
+            "legendFormat": "Transactions"
+          }
+        ],
+        "gridPos": {
+          "x": 8,
+          "y": 0,
+          "w": 8,
+          "h": 4
+        }
+      },
+      {
+        "title": "Hash Rate",
+        "type": "graph",
+        "datasource": "Prometheus",
+        "targets": [
+          {
+            "expr": "toki_hash_rate",
+            "legendFormat": "Hash Rate"
+          }
+        ],
+        "gridPos": {
+          "x": 0,
+          "y": 4,
+          "w": 12,
+          "h": 6
+        }
+      },
+      {
+        "title": "Block Time",
+        "type": "graph",
+        "datasource": "Prometheus",
+        "targets": [
+          {
+            "expr": "toki_block_time_seconds",
+            "legendFormat": "Block Time"
+          }
+        ],
+        "gridPos": {
+          "x": 12,
+          "y": 4,
+          "w": 12,
+          "h": 6
+        }
+      },
+      {
+        "title": "Memory Usage",
+        "type": "graph",
+        "datasource": "Prometheus",
+        "targets": [
+          {
+            "expr": "process_resident_memory_bytes",
+            "legendFormat": "Memory"
+          }
+        ],
+        "gridPos": {
+          "x": 0,
+          "y": 10,
+          "w": 12,
+          "h": 6
+        }
+      },
+      {
+        "title": "CPU Usage",
+        "type": "graph",
+        "datasource": "Prometheus",
+        "targets": [
+          {
+            "expr": "rate(process_cpu_seconds_total[1m])",
+            "legendFormat": "CPU"
+          }
+        ],
+        "gridPos": {
+          "x": 12,
+          "y": 10,
+          "w": 12,
+          "h": 6
+        }
+      },
+      {
+        "title": "AI Theta Value",
+        "type": "gauge",
+        "datasource": "Prometheus",
+        "targets": [
+          {
+            "expr": "toki_ai_theta",
+            "legendFormat": "Theta"
+          }
+        ],
+        "gridPos": {
+          "x": 0,
+          "y": 16,
+          "w": 8,
+          "h": 4
+        }
+      },
+      {
+        "title": "Charity Pool",
+        "type": "stat",
+        "datasource": "Prometheus",
+        "targets": [
+          {
+            "expr": "toki_charity_pool_balance",
+            "legendFormat": "Charity Pool"
+          }
+        ],
+        "gridPos": {
+          "x": 8,
+          "y": 16,
+          "w": 8,
+          "h": 4
+        }
+      },
+      {
+        "title": "Peer Count",
+        "type": "stat",
+        "datasource": "Prometheus",
+        "targets": [
+          {
+            "expr": "toki_peer_count",
+            "legendFormat": "Peers"
+          }
+        ],
+        "gridPos": {
+          "x": 16,
+          "y": 16,
+          "w": 8,
+          "h": 4
+        }
+      }
+    ],
+    "schemaVersion": 27,
+    "version": 0,
+    "refresh": "10s"
+  }
+}

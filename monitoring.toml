@@ -1,0 +1,41 @@
+# Toki 监控配置
+
+# Prometheus 指标端点
+metrics_addr = "0.0.0.0:9090"
+
+# 健康检查端点
+health_addr = "0.0.0.0:8080"
+
+# 日志配置
+[log]
+level = "info"
+file = "./logs/toki.log"
+max_size_mb = 100
+max_files = 10
+console = true
+
+# 性能监控
+[monitor]
+# 采集间隔（秒）
+interval = 10
+# 是否启用内存监控
+memory = true
+# 是否启用 CPU 监控
+cpu = true
+# 是否启用网络监控
+network = true
+# 是否启用磁盘监控
+disk = true
+
+# 告警配置
+[alert]
+# 是否启用告警
+enabled = false
+# 告警 webhook
+webhook = ""
+# 内存使用告警阈值（MB）
+memory_threshold = 4096
+# CPU 使用告警阈值（%）
+cpu_threshold = 80
+# 磁盘使用告警阈值（%）
+disk_threshold = 90

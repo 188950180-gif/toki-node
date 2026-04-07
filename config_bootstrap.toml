@@ -1,0 +1,94 @@
+# Toki 区块链启动配置（临时）
+# 此配置仅用于首次启动，区块链自主运行后将被自动删除
+
+# 服务器信息（用于首次配置）
+[server]
+# 服务器 IP
+ip = "182.254.176.30"
+# 实例 ID
+instance_id = "lhins-i50x"
+# 操作系统
+os = "Ubuntu Server 24.04 LTS 64bit"
+# CPU 核数
+cpu_cores = 8
+# 内存 (GB)
+memory_gb = 32
+# 系统盘 (GB)
+disk_gb = 320
+
+# 网络配置（首次启动时自动配置）
+[network]
+# 监听地址（根据服务器配置）
+listen_addr = "/ip4/0.0.0.0/tcp/30333"
+# 对外暴露地址
+external_addr = "/ip4/182.254.176.30/tcp/30333"
+# 作为种子节点运行
+is_bootstrap = true
+# 最大连接数
+max_connections = 200
+
+# API 配置（根据服务器端口配置）
+[api]
+# 监听地址（端口 8080）
+listen_addr = "0.0.0.0:8080"
+# 启用 CORS
+enable_cors = true
+# 允许的来源
+allowed_origins = ["*"]
+
+# 共识配置（根据服务器性能优化）
+[consensus]
+# 启用挖矿
+enable_mining = true
+# 挖矿线程数（根据 CPU 核数）
+thread_count = 8
+# 目标出块时间（秒）
+target_block_time = 10
+# 初始难度
+initial_difficulty = 1000000
+# 每区块最大交易数
+max_tx_per_block = 1000
+
+# 存储配置（根据服务器磁盘配置）
+[storage]
+# 数据目录
+data_dir = "./data"
+# 启用压缩
+enable_compression = true
+# 缓存大小（MB，根据内存配置）
+cache_size_mb = 8192
+# 数据库大小限制（GB）
+max_db_size_gb = 200
+
+# 日志配置
+[logging]
+# 日志级别
+level = "info"
+# 日志格式
+format = "json"
+# 启用文件日志
+enable_file_log = true
+# 日志文件路径
+log_file = "./logs/toki.log"
+
+# 自启动配置（仅在首次启动时使用）
+[bootstrap]
+# 启用自启动
+enabled = true
+# 启动延迟（秒）
+delay_secs = 5
+# 自动配置网络
+auto_config_network = true
+# 自动开放防火墙
+auto_config_firewall = true
+# 启动后自动删除此配置
+auto_delete_config = true
+
+# 安全配置
+[security]
+# 启用加密
+enable_encryption = true
+# 密钥轮换周期（天）
+key_rotation_days = 180
+# 启用访问日志
+enable_access_log = true

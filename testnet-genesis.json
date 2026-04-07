@@ -1,0 +1,21 @@
+{
+  "chain_id": "toki-testnet-1",
+  "timestamp": 1700000000,
+  "difficulty": 1000000,
+  "alloc": {
+    "4vJ9JU1bJJE96FWSJKvHGJ5X8Q7QZQZQZQZQZQZQZQZQZQZQZQZQZQZQZQ": {
+      "balance": 100000000000000,
+      "account_type": "Personal"
+    },
+    "8qbHbw2BbbTHBW1sbeqaJ5X8Q7QZQZQZQZQZQZQZQZQZQZQZQZQZQZQZQZQ": {
+      "balance": 50000000000000,
+      "account_type": "Developer"
+    }
+  },
+  "params": {
+    "target_block_time": 10,
+    "max_block_size": 1048576,
+    "max_tx_per_block": 1000,
+    "difficulty_adjustment_interval": 100
+  }
+}

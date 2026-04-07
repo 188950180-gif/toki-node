@@ -1,0 +1,111 @@
+# Toki 节点配置示例
+
+# 数据存储目录
+data_dir = "./data"
+
+# 网络配置
+[network]
+# P2P 网络监听地址
+listen_addr = "0.0.0.0:30333"
+
+# 种子节点列表（用于连接到现有网络）
+bootstrap_peers = [
+    # "/ip4/1.2.3.4/tcp/30333/p2p/PeerId...",
+]
+
+# 最大连接数
+max_connections = 50
+
+# 连接超时（秒）
+connection_timeout = 10
+
+# 心跳间隔（秒）
+heartbeat_interval = 30
+
+# API 配置
+[api]
+# API 监听地址
+listen_addr = "0.0.0.0:8080"
+
+# 启用 CORS
+enable_cors = true
+
+# 请求超时（秒）
+request_timeout = 30
+
+# 共识配置
+[consensus]
+# 启用挖矿
+enable_mining = true
+
+# 挖矿线程数（建议设置为 CPU 核心数）
+mining_threads = 6
+
+# 目标区块时间（秒）
+target_block_time = 10
+
+# AI 经济系统配置
+[ai]
+# 启用 AI 系统
+enable = true
+
+# 基础分发间隔（区块数）
+distribution_interval = 1000
+
+# Theta 计算间隔（区块数）
+theta_calculation_interval = 100
+
+# 公益执行间隔（区块数）
+charity_interval = 500
+
+# 平权检查间隔（区块数）
+equalization_interval = 2000
+
+# 存储配置
+[storage]
+# 数据库类型（sled, rocksdb）
+database_type = "sled"
+
+# 缓存大小（MB）
+cache_size = 1024
+
+# 是否启用压缩
+enable_compression = true
+
+# 日志配置
+[log]
+# 日志级别（trace, debug, info, warn, error）
+level = "info"
+
+# 日志文件路径
+file = "./logs/toki.log"
+
+# 是否输出到控制台
+console = true
+
+# 开发者权益配置（可选）
+[governance]
+# 启用密钥轮换
+enable_key_rotation = true
+
+# 密钥轮换周期（天）
+rotation_period_days = 90
+
+# 加密存储路径
+encrypted_storage_path = "./data/encrypted"
+
+# 示例：测试网络配置
+# [network]
+# listen_addr = "0.0.0.0:30334"
+# bootstrap_peers = [
+#     "/ip4/127.0.0.1/tcp/30333/p2p/PeerId...",
+# ]
+
+# 示例：主网络配置
+# [network]
+# listen_addr = "0.0.0.0:30333"
+# bootstrap_peers = [
+#     "/ip4/seed1.toki.network/tcp/30333/p2p/PeerId...",
+#     "/ip4/seed2.toki.network/tcp/30333/p2p/PeerId...",
+#     "/ip4/seed3.toki.network/tcp/30333/p2p/PeerId...",
+# ]

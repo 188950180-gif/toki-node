@@ -1,0 +1,94 @@
+# Toki 区块链配置文件
+
+# 数据目录
+data_dir = "./data"
+# 备份路径
+backup_path = "./backup"
+# 日志级别
+log_level = "info"
+
+# 网络配置
+[network]
+# 监听地址
+listen_addr = "/ip4/0.0.0.0/tcp/30333"
+enable_p2p = true
+# 可选：添加 bootstrap_nodes 种子节点列表
+bootstrap_nodes = []
+# 种子节点列表
+bootstrap_peers = [
+    "/ip4/182.254.176.30/tcp/30333",
+]
+# 最大连接数
+max_connections = 100
+# 启用 UPnP
+enable_upnp = false
+# 启用节点发现
+enable_discovery = true
+
+# 共识配置
+[consensus]
+# 启用挖矿
+enable_mining = true
+# 矿工地址
+miner_address = "toki1miner00000000000000000000000000000000"
+# 目标出块时间（秒）
+target_block_time = 10
+# 初始难度
+initial_difficulty = 1000000
+# 挖矿线程数（0 = 自动检测）
+thread_count = 0
+# 每区块最大交易数
+max_tx_per_block = 100
+
+# 存储配置
+[storage]
+# 数据目录
+data_dir = "./data"
+# 启用压缩
+enable_compression = true
+# 缓存大小（MB）
+cache_size_mb = 128
+
+# API 配置
+[api]
+# 监听地址
+listen_addr = "0.0.0.0:8080"
+# 启用 CORS
+enable_cors = true
+# 启用 WebSocket
+enable_ws = false
+# 最大请求体大小（MB）
+max_body_size_mb = 10
+
+# AI 经济系统配置
+[ai]
+# 启用 AI 系统
+enabled = true
+# 分发间隔（秒）
+distribute_interval = 86400
+# 平权检查间隔（秒）
+equalization_interval = 604800
+# 公益执行间隔（秒）
+charity_interval = 86400
+
+# 密钥轮换配置
+[key_rotation]
+# 启用密钥轮换
+enabled = true
+# 轮换周期（天）
+rotation_period_days = 180
+# 密钥有效期（天）
+key_validity_days = 180
+# 启用自动轮换
+auto_rotation_enabled = true
+
+# 日志配置
+[logging]
+# 日志级别（trace, debug, info, warn, error）
+level = "info"
+# 日志格式（json, pretty, compact）
+format = "pretty"
+# 启用文件日志
+enable_file_log = true
+# 日志文件路径
+log_file = "./logs/toki.log"
