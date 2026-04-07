@@ -4,8 +4,7 @@ FROM rust:latest AS builder
 
 WORKDIR /app
 
-# 复制 Cargo.toml（不再需要 Cargo.lock）
-COPY Cargo.toml ./
+COPY Cargo.toml Cargo.lock ./
 
 COPY core ./core
 COPY crypto ./crypto
@@ -35,6 +34,7 @@ COPY genesis.json /app/genesis.json
 
 RUN mkdir -p /data && chmod 777 /data
 
+# 确保以 root 运行（默认就是 root，但显式声明无害）
 USER root
 
 EXPOSE 30333 8080
