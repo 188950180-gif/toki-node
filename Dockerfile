@@ -4,7 +4,8 @@ FROM rust:latest AS builder
 
 WORKDIR /app
 
-COPY Cargo.toml Cargo.lock ./
+# 复制 Cargo.toml（不再需要 Cargo.lock）
+COPY Cargo.toml ./
 
 COPY core ./core
 COPY crypto ./crypto
@@ -34,10 +35,11 @@ COPY genesis.json /app/genesis.json
 
 RUN mkdir -p /data && chmod 777 /data
 
+USER root
+
 EXPOSE 30333 8080
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
   CMD curl -f http://localhost:8080/health || exit 1
 
-# 以 root 用户运行（默认就是 root，不需要 USER 指令）
 CMD ["toki-node", "start", "--config", "/app/config.toml", "--data-dir", "/data"]
