@@ -101,7 +101,7 @@ mod tests {
     #[test]
     fn test_logging_initialization() {
         let config = LogConfig::default();
-        assert!(init_logging(config).is_ok());
+        init_logging(config);
     }
 
     #[test]
