@@ -41,6 +41,7 @@ COPY genesis.json /app/genesis.json
 
 # 创建数据目录（不需要授权给特定用户，因为以 root 运行）
 RUN mkdir -p /data
+RUN chmod 777 /data
 
 # 暴露端口
 EXPOSE 30333 8080
