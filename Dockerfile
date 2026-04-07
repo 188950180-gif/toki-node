@@ -30,9 +30,6 @@ RUN apt-get update && \
     apt-get install -y ca-certificates curl && \
     rm -rf /var/lib/apt/lists/*
 
-# 创建用户
-RUN useradd -m -s /bin/bash toki
-
 WORKDIR /app
 
 # 从构建阶段复制二进制文件
@@ -42,11 +39,8 @@ COPY --from=builder /app/target/release/toki-node /usr/local/bin/toki-node
 COPY config.toml /app/config.toml
 COPY genesis.json /app/genesis.json
 
-# 创建数据目录并授权
-RUN mkdir -p /data && chown -R toki:toki /data
-
-# 切换用户
-USER toki
+# 创建数据目录（不需要授权给特定用户，因为以 root 运行）
+RUN mkdir -p /data
 
 # 暴露端口
 EXPOSE 30333 8080
@@ -58,5 +52,5 @@ VOLUME ["/data"]
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
   CMD curl -f http://localhost:8080/health || exit 1
 
-# 启动命令
+# 以 root 用户启动节点（不再切换用户）
 CMD ["toki-node", "start", "--config", "/app/config.toml", "--data-dir", "/data"]
