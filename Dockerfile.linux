@@ -1,0 +1,9 @@
+FROM ubuntu:22.04
+RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/lists/*
+WORKDIR /app
+COPY target/release/toki-node /usr/local/bin/toki-node
+COPY config.toml /app/config.toml
+COPY genesis.json /app/genesis.json
+RUN mkdir -p /data && chmod 777 /data
+EXPOSE 30333 8080
+CMD ["toki-node", "start", "--config", "/app/config.toml", "--data-dir", "/data"]
