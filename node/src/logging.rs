@@ -1,15 +1,14 @@
 //! 日志配置和初始化模块
 
 use std::fs::OpenOptions;
-use std::io::Write;
 use std::path::Path;
 
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use tracing::metadata::LevelFilter;
-use tracing_subscriber::fmt::time::ChronoLocal;
+use tracing_subscriber::fmt;
 use tracing_subscriber::prelude::*;
-use tracing_subscriber::{fmt, EnvFilter};
+use tracing_subscriber::EnvFilter;
 
 /// 日志配置
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -46,75 +45,38 @@ pub fn init_logging(config: LogConfig) -> Result<()> {
 
     let env_filter = EnvFilter::from_default_env().add_directive(level.into());
 
-    let fmt_layer = if config.json {
-        fmt::layer()
-            .json()
-            .with_timer(ChronoLocal::new("%Y-%m-%d %H:%M:%S%.3f".to_string()))
-            .with_target(true)
-            .with_level(true)
-            .with_file(true)
-            .with_line_number(true)
-            .with_env_filter(env_filter)
-    } else {
-        fmt::layer()
-            .with_timer(ChronoLocal::new("%Y-%m-%d %H:%M:%S%.3f".to_string()))
-            .with_target(true)
-            .with_level(true)
-            .with_file(true)
-            .with_line_number(true)
-            .with_env_filter(env_filter)
-    };
-
     let subscriber = tracing_subscriber::registry();
 
     if config.console {
-        if let Some(file_path) = config.file {
-            // 同时输出到控制台和文件
-            let file_appender = make_file_appender(&file_path)?;
-            let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
-            let file_layer = fmt::layer()
-                .with_writer(non_blocking)
-                .with_ansi(false)
-                .with_timer(ChronoLocal::new("%Y-%m-%d %H:%M:%S%.3f".to_string()))
-                .with_target(true)
-                .with_level(true)
-                .with_file(true)
-                .with_line_number(true);
-            subscriber.with(fmt_layer).with(file_layer).init();
-        } else {
-            subscriber.with(fmt_layer).init();
-        }
-    } else if let Some(file_path) = config.file {
-        // 仅输出到文件
-        let file_appender = make_file_appender(&file_path)?;
-        let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
-        let file_layer = fmt::layer()
-            .with_writer(non_blocking)
-            .with_ansi(false)
-            .with_timer(ChronoLocal::new("%Y-%m-%d %H:%M:%S%.3f".to_string()))
+        let fmt_layer = fmt::layer()
             .with_target(true)
             .with_level(true)
             .with_file(true)
-            .with_line_number(true);
-        subscriber.with(file_layer).init();
-    } else {
-        // 无输出（不应该发生）
+            .with_line_number(true)
+            .with_env_filter(env_filter.clone());
         subscriber.with(fmt_layer).init();
     }
 
-    Ok(())
-}
-
-fn make_file_appender(file_path: &str) -> Result<std::fs::File> {
-    let path = Path::new(file_path);
-    if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent)?;
+    if let Some(file_path) = config.file {
+        let file = OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&file_path)?;
+        let file_layer = fmt::layer()
+            .with_writer(std::sync::Arc::new(file))
+            .with_ansi(false)
+            .with_target(true)
+            .with_level(true)
+            .with_file(true)
+            .with_line_number(true)
+            .with_env_filter(env_filter);
+        subscriber.with(file_layer).init();
+    } else if !config.console {
+        // 如果既没有控制台也没有文件，至少设置一个默认的
+        subscriber.with(fmt::layer()).init();
     }
-    let file = OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(path)?;
-    Ok(file)
+
+    Ok(())
 }
 
 #[cfg(test)]
@@ -140,8 +102,7 @@ mod tests {
         let result = init_logging(config);
         assert!(result.is_ok());
         tracing::info!("Test log message");
-        // 等待异步写入完成
-        std::thread::sleep(std::time::Duration::from_millis(100));
+        std::thread::sleep(std::time::Duration::from_millis(50));
         let metadata = std::fs::metadata(&log_path).unwrap();
         assert!(metadata.len() > 0);
     }
