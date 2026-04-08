@@ -45,34 +45,41 @@ pub fn init_logging(config: LogConfig) -> Result<()> {
 
     let env_filter = EnvFilter::from_default_env().add_directive(level.into());
 
-    let subscriber = tracing_subscriber::registry();
+    // 构建一个 subscriber
+    let subscriber = tracing_subscriber::registry().with(env_filter);
 
+    // 控制台输出
     if config.console {
         let fmt_layer = fmt::layer()
             .with_target(true)
             .with_level(true)
             .with_file(true)
-            .with_line_number(true)
-            .with_env_filter(env_filter.clone());
+            .with_line_number(true);
         subscriber.with(fmt_layer).init();
     }
 
+    // 文件输出
     if let Some(file_path) = config.file {
+        let path = Path::new(&file_path);
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
         let file = OpenOptions::new()
             .create(true)
             .append(true)
-            .open(&file_path)?;
+            .open(path)?;
         let file_layer = fmt::layer()
             .with_writer(std::sync::Arc::new(file))
             .with_ansi(false)
             .with_target(true)
             .with_level(true)
             .with_file(true)
-            .with_line_number(true)
-            .with_env_filter(env_filter);
+            .with_line_number(true);
         subscriber.with(file_layer).init();
-    } else if !config.console {
-        // 如果既没有控制台也没有文件，至少设置一个默认的
+    }
+
+    // 如果既没有控制台也没有文件，至少设置一个默认的
+    if !config.console && config.file.is_none() {
         subscriber.with(fmt::layer()).init();
     }
 
